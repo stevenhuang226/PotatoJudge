@@ -22,3 +22,9 @@ n x loop{
     load output.bin if exists
     call checker
 }
+
+## start judge
+put file in queue/
+judge\_worker trigger run\_judge(submissiont\_id, problem\_id)
+
+and judge\_worker push result to another queue
