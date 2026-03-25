@@ -1,14 +1,24 @@
 ## a problem have:
-driver.c: compile with judge code. Call judge function and write judge's result into shared memory
-input.bin: sandbox(parent) will load this into shared memory (void \*). Then driver should know how to read this
-output.bin: used for checker. Not force request. sandbox(parent) will load this into a memory space (void \*)
-check.c: sandbox(parent) will call this to check result;
+config              plain text file include settings for this test case
+drive.c             compile with judge.c. Call judge function and write judge's result into shared memory
+checker.out/c       call by parent, check result in shared memory. Can use data in output.bin to assists
 
+n x input.bin:      load by parent
+n x output.bin:     load by parent, can be use by checker
 
-## Judeg Process:
-sandbox(parent): Compile driver.c and judge.c as judge.out
-load input.bin into shared\_memory.
-fork and run judge.out
+## Sandbox
 
-load output.bin if exists.
-call check to check result, result will depend on this.
+judge.c
+
+comiple judge.c and driver.c in sandbox environment, generate judge.out -> check CE
+
+n x loop{
+    load input.bin -> shared memory
+
+    create sandbox {
+        run judge.out
+    }
+
+    load output.bin if exists
+    call checker
+}
