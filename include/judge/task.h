@@ -2,6 +2,7 @@
 #define JUDGE_TASK_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include "./compiler.h"
 
 typedef struct {
