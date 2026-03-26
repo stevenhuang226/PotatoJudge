@@ -1,6 +1,5 @@
-
-#ifndef JUDGE_RESULT_STATUS
-#define JUDGE_RESULT_STATUS
+#ifndef STATUS_H
+#define STATUS_H
 
 #include <stdio.h>
 
@@ -10,7 +9,7 @@ typedef enum {
 	JUDGE_COMPILE_ERROR,
 	JUDGE_TIME_LIMIT,
 	JUDGE_MEMORY_LIMIT,
-	JUDGE_UNKNOW_ERROR
+	JUDGE_UNKNOW_ERROR,
 } judge_status_t;
 
 #endif
