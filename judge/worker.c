@@ -67,10 +67,11 @@ int8_t create_sandbox_paths()
 	snprintf(g_judge_config.sandbox_path.tmp, sizeof(g_judge_config.sandbox_path.tmp),
 			"%s/tmp",
 			g_judge_config.sandbox_path.base);
-	if (mkdir(g_judge_config.sandbox_path.tmp, 0777) < 0 && errno != EEXIST) {
+	if (mkdir(g_judge_config.sandbox_path.tmp, 0775) < 0 && errno != EEXIST) {
 		perror("create sandbox path tmp");
 		return -1;
 	}
+	chmod(g_judge_config.sandbox_path.tmp, 01777);
 
 	snprintf(g_judge_config.sandbox_path.dev, sizeof(g_judge_config.sandbox_path.dev),
 			"%s/dev",

@@ -99,7 +99,10 @@ judge_status_t judge_submission(judge_task_t *task)
 
 int main()
 {
-	initialization();
+	if (initialization() < 0) {
+		printf("FAIL\n");
+		return 0;
+	}
 
 	judge_task_t task;
 	task.submission_id = 0;

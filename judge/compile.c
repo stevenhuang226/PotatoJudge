@@ -6,42 +6,19 @@
 #include <sys/mount.h>
 #include <sched.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 compile_status_t compile_gcc(const sandbox_path_t *sandbox)
 {
 	pid_t child_pid = fork();
 
-	if (child_pid < 0) {
-		return COMPILE_BUILD_FAIL;
-	}
+	if (child_pid < 0) return COMPILE_BUILD_FAIL;
 
 	if (child_pid == 0) {
 
-		if (unshare(CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWPID) < 0) {
-			perror("unshare fail");
-			_exit(127);
-		}
-
-		pid_t inner_pid = fork();
-		
-		if (inner_pid < 0) {
-			perror("fork 2");
-			_exit(127);
-		}
-
-		if (inner_pid > 0) {
-			int inner_status;
-			waitpid(inner_pid, &inner_status, 0);
-
-			if (WIFEXITED(inner_status)) {
-				_exit(WEXITSTATUS(inner_status));
-			} else if (WIFSIGNALED(inner_status)) {
-				_exit(128 + WTERMSIG(inner_status));
-			} else {
-				_exit(127);
-			}
-		}
+		/* TODO unshare(CLONE_NEWNS) avoid umount problem */
 
 		if(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
 			perror("mount private");
@@ -69,7 +46,7 @@ compile_status_t compile_gcc(const sandbox_path_t *sandbox)
 			_exit(127);
 		}
 
-		if (mount("tmpfs", sandbox->tmp, "tmpfs", MS_NOEXEC | MS_NOSUID, NULL) < 0) {
+		if (mount("tmpfs", sandbox->tmp, "tmpfs", MS_NODEV | MS_NOSUID, "size=64M") < 0) {
 			perror("mount tmpfs");
 			_exit(127);
 		}
