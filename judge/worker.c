@@ -71,7 +71,7 @@ int8_t create_sandbox_paths()
 		perror("create sandbox path tmp");
 		return -1;
 	}
-	chmod(g_judge_config.sandbox_path.tmp, 01777);
+	chmod(g_judge_config.sandbox_path.tmp, 01777); // mkdir cannot set 01777, request another chmod
 
 	snprintf(g_judge_config.sandbox_path.dev, sizeof(g_judge_config.sandbox_path.dev),
 			"%s/dev",
@@ -94,7 +94,7 @@ int8_t create_sandbox_paths()
 	return 0;
 }
 
-/* entry function */
+/* init function */
 int initialization()
 {
 	if (load_config() < 0) {
@@ -106,4 +106,11 @@ int initialization()
 	}
 
 	/* loop track sumbission */
+	return 0;
 }
+
+/*
+int main()
+{
+}
+*/

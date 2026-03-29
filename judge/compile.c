@@ -11,7 +11,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 compile_status_t compile_gcc(const sandbox_path_t *sandbox_path)
 {

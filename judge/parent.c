@@ -16,13 +16,6 @@
 
 #include "./compile.c"
 
-/*
-void *create_shared(ssize_t size)
-{
-	void *shared = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-}
-*/
-
 compile_status_t judge_prepare(const judge_task_t *task)
 {
 	if (task == NULL) {
@@ -110,8 +103,10 @@ int main()
 	task.compiler_type = COMPILER_GCC;
 
 	judge_status_t judge_result = judge_submission(&task);
+
+
 	if (judge_result == JUDGE_ACCEPT) {
-		printf("TEST SUCCES\n");
+		printf("COMPILE SUCCES\n");
 	} else {
 		printf("FAIL\n");
 	}
