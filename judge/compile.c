@@ -38,7 +38,7 @@ compile_status_t compile_gcc(const sandbox_path_t *sandbox_path)
 		_exit(127);
 	}
 
-	int sandbox_pid = fork(); // double fork
+	pid_t sandbox_pid = fork(); // double fork
 
 	if (sandbox_pid != 0) {
 		int status;

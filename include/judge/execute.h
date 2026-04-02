@@ -1,8 +1,9 @@
-#ifndef EXECUTE_h
-#define EXECUTE_h
+#ifndef EXECUTE_H
+#define EXECUTE_H
 
 typedef enum {
 	EXECUTE_OK,		// accepted
+	EXECUTE_WA,		// wrong answer
 
 	EXECUTE_RE,		// runtime error
 	EXECUTE_SIGSEGV,	// segment fault
@@ -15,6 +16,10 @@ typedef enum {
 	EXECUTE_MLE,
 
 	EXECUTE_SEC,
+
+	EXECUTE_NO_INPUT,	// no input%d.bin
+	EXECUTE_NO_OUTPUT,	// no output%d.bin
+	EXECUTE_NO_CHECKER,	// no checker.out
 
 	EXECUTE_UNKNOW,
 } execute_status_t;

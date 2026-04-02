@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 typedef struct {
-	uint32_t magic; // check if reading correct memory or not
+	uint32_t magic; // header check
 
 	int job_id;
 	execute_status_t state;
@@ -17,8 +17,8 @@ typedef struct {
 } job_shm_t;
 
 typedef struct {
-	int count;
-	job_shm_t *jobs[];
-} job_queue_t;
+	job_shm_t *ptr;
+	ssize_t size;
+} job_entry_t;
 
 #endif

@@ -1,211 +1,257 @@
 #include "../config.c"
+#include "../utils/copy_fd.c"
+
 #include "../include/judge/execute.h"
-#include "../include/judge/sandbox_path.h"
-#include "../include/judge/job.h"
 #include "../include/problem/problem_set.h"
 
-#include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
-#include <sys/mount.h>
-#include <sys/mman.h>
-#include <sched.h>
-#include <fcntl.h>
+#include <linux/memfd.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
+#include <fcntl.h>
 
-execute_status_t execute(sandbox_path_t *sandbox, problem_set_t *problem_set)
+int8_t is_execute_status(int8_t code)
 {
-	int job_count;
-
-	job_queue_t job_queue;
-	job_queue.count = problem_set->job_count;
-	job_queue.jobs;
-
-	for (int i = 0; i < job_queue.count; ++i) {
-		char path[MAX_PATH_LENGTH];
-		snprintf(path, sizeof(path),
-			"%s/input%d.bin",
-			problem_set->base_path, i);
-
-		int fd = open(path, O_RDONLY);
-		if (fd < 0) {
-			perror("execute open input file");
-			for (int i2 = 0; i2 < i; ++i2) {
-				free(job_queue.jobs[i]);
-			}
-			return EXECUTE_UNKNOW;
-		}
-
-		off_t file_size = lseek(fd, 0, SEEK_END);
-		lseek(fd, 0, SEEK_SET);
-
-		(job_queue.jobs)[i] = mmap(NULL, file_size,
-			PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
-			-1, 0);
-
-		if (job_queue.jobs[i] == NULL) {
-			close(fd);
-			perror("execute mmap");
-			for (int i2 = 0; i2 < i; ++i2) {
-				free(job_queue.jobs[i]);
-			}
-			return EXECUTE_UNKNOW;
-		}
-
-		int read_size = read(fd, job_queue.jobs[i], file_size);
-		close(fd);
-
-		if (read_size != file_size) {
-			return (EXECUTE_UNKNOW);
-		}
-	}
-
-	int supervisor_pid = fork();
-
-	if (supervisor_pid == 0) {
-		uint32_t host_uid = getuid();
-		uint32_t host_gid = getgid();
-
-		if (unshare(CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID |
-			CLONE_NEWPID | CLONE_NEWUTS | CLONE_NEWNET) < 0) {
-			perror("execute unshare");
-			_exit(127);
-		}
-
-		int sandbox_pid = fork();
-
-		if (sandbox_pid != 0) {
-			int status;
-			if (waitpid(sandbox_pid, &status, 0) < 0) _exit(127);
-			if (! WIFEXITED(status)) _exit(127);
-			_exit(WEXITSTATUS(status));
-		}
-
-		char uid_map[64];
-		char gid_map[64];
-		char setgroups[] = "deny\n";
-		snprintf(uid_map, sizeof(uid_map), "0 %u 1", host_uid);
-		snprintf(gid_map, sizeof(gid_map), "0 %u 1", host_gid);
-
-		int fd;
-		fd = open("/proc/self/setgroups", O_WRONLY);
-		if (fd < 0 || write(fd, setgroups, strlen(setgroups)) < 0) {
-			perror("open/set setgroups");
-			_exit(127);
-		}
-		close(fd);
-
-		fd = open("/proc/self/uid_map", O_WRONLY);
-		if (fd < 0 || write(fd, uid_map, strlen(uid_map)) < 0) {
-			perror("open/set uid_map");
-			_exit(127);
-		}
-		close(fd);
-
-		fd = open("/proc/self/gid_map", O_WRONLY);
-		if (fd < 0 || write(fd, gid_map, strlen(gid_map)) < 0) {
-			perror("open/set gid_map");
-			_exit(127);
-		}
-		close(fd);
-
-		if (setreuid(0, 0) < 0 || setregid(0, 0) < 0) {
-			perror("setre uid/gid");
-			_exit(127);
-		}
-
-		struct rlimit cpu_limit = {
-			problem_set->time_limit,
-			problem_set->time_limit,
-		};
-
-		struct rlimit mem_limit = {
-			problem_set->memory_limit * 1024 * 1024, // MB
-			problem_set->memory_limit * 1024 * 1024,
-		};
-
-		if (setrlimit(RLIMIT_CPU, &cpu_limit) != 0 ||
-			setrlimit(RLIMIT_AS, &mem_limit) != 0) {
-			perror("set limit");
-			_exit(127);
-		}
-	}
-
-	for (int i = 0; i < job_queue.count; ++i) {
-		free(job_queue.jobs[i]);
+	if (code >= EXECUTE_OK && code <= EXECUTE_UNKNOW) {
+		return true;
+	} else {
+		return false;
 	}
 }
-/*
-execute_status_t execute(sandbox_path_t *sandbox)
+
+static int memfd_create_wrap(const char *name, const off_t limit)
 {
-	 * still request double fork() avoid change anything on main user_namespace
-	 *
-	 * need to figure how to share memory between a.out
-	 *
+	int fd = syscall(SYS_memfd_create, name, MFD_ALLOW_SEALING);
+	if (fd < 0) {
+		return -1;
+	}
 
-	int parent_uid = getuid();
-	int parent_gid = getgid();
+	if (ftruncate(fd, limit) != 0) {
+		close(fd);
+		perror("ftruncate");
+		return -1;
+	}
 
-	printf("getuid before unshare: %d\n", parent_uid);
-	printf("getgid before unshare: %d\n", parent_gid);
+	if (fcntl(fd, F_ADD_SEALS, F_SEAL_GROW) != 0) {
+		close(fd);
+		perror("F_SEAL_GROW");
+		return -1;
+	}
 
-	unshare(CLONE_NEWUSER);
+	return fd;
+}
 
-	printf("getuid after unshare: %d\n", getuid());
-	printf("getgid after unshare: %d\n", getgid());
+execute_status_t execute_sandbox(sandbox_path_t *sandbox_path,
+	problem_set_t *problem, const int fd_shm, const off_t shm_size)
+{
+	pid_t sandbox_pid = fork();
 
-	printf("try parent uid: %d\n", parent_uid);
-	printf("try parent gid: %d\n", parent_gid);
+	if (sandbox_pid < 0) return EXECUTE_UNKNOW;
 
-	int child_pid = fork();
+	if (sandbox_pid != 0) {
+		close(fd_shm);
+		int status;
+		if (waitpid(sandbox_pid, &status, 0) < 0 ||
+			!WIFEXITED(status)) {
+			return EXECUTE_UNKNOW;
+		}
 
-	if (child_pid < 0) {
+		return EXECUTE_OK;
+	}
+
+	char str_fd_shm[32];
+	char str_shm_size[32];
+	snprintf(str_fd_shm, sizeof(str_fd_shm), "%d", fd_shm);
+	snprintf(str_shm_size, sizeof(str_shm_size), "%d", shm_size);
+
+	char *argv[] = {
+		"/tmp/pj/runtime/a.out",
+		str_fd_shm,
+		str_shm_size,
+		NULL
+	};
+
+	execv("/tmp/pj/runtime/a.out", argv);
+
+	_exit(EXECUTE_UNKNOW);
+}
+
+execute_status_t execute(sandbox_path_t *sandbox_path, problem_set_t *problem_set)
+{
+	char buffer[4096];
+	ssize_t read_size;
+	ssize_t write_size;
+
+	int fd_input_file = -1;
+	int fd_shm = -1;
+	int fd_output_file = -1;
+	int fd_exp = -1;
+
+	execute_status_t ret = EXECUTE_UNKNOW;
+
+	fd_input_file = open(problem_set->input_path, O_RDONLY);
+	if (fd_input_file < 0) {
+		ret = EXECUTE_NO_INPUT;
+		goto err_out;
+	}
+
+	off_t input_size = lseek(fd_input_file, 0, SEEK_END);
+	if (input_size < 0) {
+		goto err_out;
+	}
+
+	lseek(fd_input_file, 0, SEEK_SET);
+
+	fd_shm = memfd_create_wrap("pj_shm", input_size + 32);
+	if (fd_shm < 0) {
+		goto err_out;
+	}
+
+	if (copy_fd(fd_input_file, fd_shm) != COPY_FD_SUCCESS) {
+		goto err_out;
+	}
+
+	close(fd_input_file);
+	fd_input_file = -1;
+
+	pid_t supervisor_pid = fork();
+
+	if (supervisor_pid < 0) {
+		goto err_out;
+	}
+
+	if (supervisor_pid == 0) {
+		execute_status_t ret = execute_sandbox(sandbox_path, problem_set, fd_shm, input_size);
+		close(fd_shm);
+		_exit(ret);
+	}
+
+	int supervisor_status;
+	if (waitpid(supervisor_pid, &supervisor_status, 0) < 0 ||
+		!WIFEXITED(supervisor_status)) {
+		goto err_out;
+	}
+
+	execute_status_t supervisor_code = WEXITSTATUS(supervisor_status);
+
+	if (supervisor_code != EXECUTE_OK) {
+		if (is_execute_status(supervisor_code)) {
+			ret = supervisor_code;
+		}
+		goto err_out;
+	}
+
+	fd_output_file = open(problem_set->output_path, O_RDONLY);
+	if (fd_output_file < 0) {
+		ret = EXECUTE_NO_OUTPUT;
+		goto err_out;
+	}
+
+	off_t output_size = lseek(fd_output_file, 0, SEEK_END);
+	if (output_size < 0) {
+		goto err_out;
+	}
+
+	lseek(fd_output_file, 0, SEEK_SET);
+
+	fd_exp = memfd_create_wrap("pj_exp", output_size + 32);
+	if (fd_exp < 0) {
+		goto err_out;
+	}
+
+	if (copy_fd(fd_output_file, fd_exp) != COPY_FD_SUCCESS) {
+		goto err_out;
+	}
+
+	close(fd_output_file); fd_output_file = -1;
+
+	char str_fd_shm[32];
+	char str_fd_exp[32];
+	char str_input_size[32];
+	char str_output_size[32];
+	snprintf(str_fd_shm, sizeof(str_fd_shm), "%d", fd_shm);
+	snprintf(str_fd_exp, sizeof(str_fd_exp), "%d", fd_exp);
+	snprintf(str_input_size, sizeof(str_input_size), "%d", input_size);
+	snprintf(str_output_size, sizeof(str_output_size), "%d", output_size);
+
+	char *argv[] = {
+		problem_set->checker_path,
+		str_fd_shm,
+		str_fd_exp,
+		str_input_size,
+		str_output_size,
+		NULL
+	};
+
+	pid_t check_pid = fork();
+
+	if (check_pid < 0) {
+		goto err_out;
+	}
+
+	if (check_pid == 0) {
+		execv(problem_set->checker_path, argv);
+		_exit(EXECUTE_UNKNOW);
+	}
+
+	int check_status;
+	pid_t wait_check_pid = waitpid(check_pid, &check_status, 0);
+
+	close(fd_shm); fd_shm = -1;
+	close(fd_exp); fd_exp = -1;
+
+	if (wait_check_pid < 0 || !WIFEXITED(check_status)) {
 		return EXECUTE_UNKNOW;
 	}
 
-	if (child_pid == 0) {
-		printf("getuid after unshare and fork: %d\n", getuid());
-		printf("getgid after unshare and fork: %d\n", getgid());
-		_exit(0);
-		int uid_fd = open("/proc/self/uid_map", O_RDONLY);
-		if (uid_fd < 0) {
-			_exit(0);
-		}
-
-		char buffer[1024] = {0};
-		int uid_map[3];
-		int gid_map[3];
-		int read_size;
-
-		read_size = read(uid_fd, buffer, sizeof(buffer));
-		close(uid_fd);
-
-		if (read_size < 0) {
-			_exit(0);
-		}
-
-		printf("%s\n", buffer);
+	execute_status_t check_code = WEXITSTATUS(check_status);
+	if (is_execute_status(check_code)) {
+		return check_code;
+	} else {
+		return EXECUTE_UNKNOW;
 	}
 
-	int status;
-	status = waitpid(child_pid, &status, 0);
 
-	return 0;
+err_out:
+	if (fd_input_file > 0) {
+		close(fd_input_file);
+	}
+	if (fd_shm > 0) {
+		close(fd_shm);
+	}
+	if (fd_output_file > 0) {
+		close(fd_output_file);
+	}
+	if (fd_exp > 0) {
+		close(fd_exp);
+	}
+
+	return ret;
 }
-*/
 
 /* tmp */
 int main()
 {
-	sandbox_path_t sandbox;
-	snprintf(sandbox.base, sizeof(sandbox.base), "/tmp/pj/runtime");
+	sandbox_path_t sandbox_path;
+	snprintf(sandbox_path.base, sizeof(sandbox_path.base), "/tmp/pj/runtime");
 
 	problem_set_t problem_set;
-	problem_set.job_count;
-	snprintf(problem_set.base_path, sizeof(problem_set.base_path),
-			"%s", "/tmp/pj_pro/0");
+	snprintf(problem_set.input_path, sizeof(problem_set.input_path),
+		"/tmp/pj_pro/0/input0.bin");
+	snprintf(problem_set.output_path, sizeof(problem_set.output_path),
+		"/tmp/pj_pro/0/output0.bin");
+	snprintf(problem_set.checker_path, sizeof(problem_set.checker_path),
+		"/tmp/pj_pro/0/checker.out");
 
-	execute_status_t res = execute(&sandbox, &problem_set);
+
+	execute_status_t exe = execute(&sandbox_path, &problem_set);
+
+	if (exe == EXECUTE_OK) {
+		printf("SUCCES\n");
+	} else {
+		printf("FAIL\n");
+	}
+
+	return 0;
 }
 /* end tmp */
