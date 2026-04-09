@@ -1,257 +1,284 @@
 #include "../config.c"
 #include "../utils/copy_fd.c"
+#include "../utils/memfd_create.c"
+#include "./set_limit.c"
 
+#include "../include/utils/potato_try.h"
 #include "../include/judge/execute.h"
 #include "../include/problem/problem_set.h"
 
-#include <sys/syscall.h>
+#include <sys/resource.h>
+#include <sys/mount.h>
 #include <sys/wait.h>
-#include <linux/memfd.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <sched.h>
+#include <string.h>
 
-int8_t is_execute_status(int8_t code)
+#define COMPILED_USER_CODE_NAME "./a.out"
+execute_status_t execute_judge(
+	sandbox_path_t *sandbox_path,
+	problem_limit_t *problem_limit,
+	int shm_fd, off_t shm_size)
 {
-	if (code >= EXECUTE_OK && code <= EXECUTE_UNKNOW) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-static int memfd_create_wrap(const char *name, const off_t limit)
-{
-	int fd = syscall(SYS_memfd_create, name, MFD_ALLOW_SEALING);
-	if (fd < 0) {
-		return -1;
+	if (sandbox_path == NULL ||
+		problem_limit == NULL ||
+		shm_fd < 0 || shm_size < 0) {
+		goto err_out;
 	}
 
-	if (ftruncate(fd, limit) != 0) {
-		close(fd);
-		perror("ftruncate");
-		return -1;
-	}
-
-	if (fcntl(fd, F_ADD_SEALS, F_SEAL_GROW) != 0) {
-		close(fd);
-		perror("F_SEAL_GROW");
-		return -1;
-	}
-
-	return fd;
-}
-
-execute_status_t execute_sandbox(sandbox_path_t *sandbox_path,
-	problem_set_t *problem, const int fd_shm, const off_t shm_size)
-{
-	pid_t sandbox_pid = fork();
-
-	if (sandbox_pid < 0) return EXECUTE_UNKNOW;
-
-	if (sandbox_pid != 0) {
-		close(fd_shm);
-		int status;
-		if (waitpid(sandbox_pid, &status, 0) < 0 ||
-			!WIFEXITED(status)) {
-			return EXECUTE_UNKNOW;
-		}
-
-		return EXECUTE_OK;
-	}
-
-	char str_fd_shm[32];
+	execute_status_t ret_err = EXECUTE_UNKNOW;
+	char str_shm_fd[32];
 	char str_shm_size[32];
-	snprintf(str_fd_shm, sizeof(str_fd_shm), "%d", fd_shm);
-	snprintf(str_shm_size, sizeof(str_shm_size), "%d", shm_size);
+	snprintf(str_shm_fd, sizeof(str_shm_fd), "%d", shm_fd);
+	snprintf(str_shm_size, sizeof(str_shm_size), "%lld", shm_size);
+
+	TRY(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+	TRY(chdir(sandbox_path->base) < 0);
+	TRY(chdir("."));
+	TRY(chdir("/"));
+
+	TRY(set_limit(problem_limit));
+	TRY(set_seccomp());
 
 	char *argv[] = {
-		"/tmp/pj/runtime/a.out",
-		str_fd_shm,
+		COMPILED_USER_CODE_NAME,
+		str_shm_fd,
 		str_shm_size,
-		NULL
+		NULL,
 	};
 
-	execv("/tmp/pj/runtime/a.out", argv);
+	execv(COMPILED_USER_CODE_NAME, argv);
 
 	_exit(EXECUTE_UNKNOW);
+err_out:
+	if (shm_fd >= 0) close(shm_fd); shm_fd = -1;
+	_exit(ret_err);
 }
 
-execute_status_t execute(sandbox_path_t *sandbox_path, problem_set_t *problem_set)
+execute_status_t execute_isolate(
+	sandbox_path_t *sandbox_path,
+	problem_set_t *problem_set,
+	execute_resource_t *exe_usage,
+	int shm_fd, off_t shm_size)
 {
-	char buffer[4096];
-	ssize_t read_size;
-	ssize_t write_size;
-
-	int fd_input_file = -1;
-	int fd_shm = -1;
-	int fd_output_file = -1;
-	int fd_exp = -1;
-
-	execute_status_t ret = EXECUTE_UNKNOW;
-
-	fd_input_file = open(problem_set->input_path, O_RDONLY);
-	if (fd_input_file < 0) {
-		ret = EXECUTE_NO_INPUT;
+	if (sandbox_path == NULL ||
+		problem_set == NULL ||
+		exe_usage == NULL ||
+		shm_fd < 0 || shm_size < 0) {
 		goto err_out;
 	}
 
-	off_t input_size = lseek(fd_input_file, 0, SEEK_END);
-	if (input_size < 0) {
+	char str_setgroups[] = "deny\n";
+	char str_uidmap[32];
+	char str_gidmap[32];
+	int fd;
+
+	snprintf(str_uidmap, sizeof(str_uidmap), "0 %u 1\n", getuid());
+	snprintf(str_gidmap, sizeof(str_gidmap), "0 %u 1\n", getgid());
+
+	TRY(unshare(CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID |
+		CLONE_NEWIPC | CLONE_NEWUTS | CLONE_NEWNET));
+
+	TRY_GIVE(open("/proc/self/setgroups", O_WRONLY), fd);
+	TRY(write(fd, str_setgroups, strlen(str_setgroups)));
+	close(fd);
+
+	TRY_GIVE(open("/proc/self/uid_map", O_WRONLY), fd);
+	TRY(write(fd, str_uidmap, strlen(str_uidmap)));
+	close(fd);
+
+	TRY_GIVE(open("/proc/self/gid_map", O_WRONLY), fd);
+	TRY(write(fd, str_gidmap, strlen(str_gidmap)));
+	close(fd);
+
+	TRY(setreuid(0, 0));
+	TRY(setregid(0, 0));
+
+	pid_t judge_pid = fork();
+
+	if (judge_pid < 0) {
+		perror("fork");
 		goto err_out;
 	}
 
-	lseek(fd_input_file, 0, SEEK_SET);
+	if (judge_pid == 0) {
+		execute_status_t ret = execute_judge(
+			sandbox_path,
+			&(problem_set->limit),
+			shm_fd, shm_size);
 
-	fd_shm = memfd_create_wrap("pj_shm", input_size + 32);
-	if (fd_shm < 0) {
-		goto err_out;
-	}
-
-	if (copy_fd(fd_input_file, fd_shm) != COPY_FD_SUCCESS) {
-		goto err_out;
-	}
-
-	close(fd_input_file);
-	fd_input_file = -1;
-
-	pid_t supervisor_pid = fork();
-
-	if (supervisor_pid < 0) {
-		goto err_out;
-	}
-
-	if (supervisor_pid == 0) {
-		execute_status_t ret = execute_sandbox(sandbox_path, problem_set, fd_shm, input_size);
-		close(fd_shm);
+		close(shm_fd);
 		_exit(ret);
 	}
 
-	int supervisor_status;
-	if (waitpid(supervisor_pid, &supervisor_status, 0) < 0 ||
-		!WIFEXITED(supervisor_status)) {
-		goto err_out;
-	}
+	int status;
+	struct rusage usage;
 
-	execute_status_t supervisor_code = WEXITSTATUS(supervisor_status);
+	TRY(wait4(judge_pid, &status, 0, &usage));
 
-	if (supervisor_code != EXECUTE_OK) {
-		if (is_execute_status(supervisor_code)) {
-			ret = supervisor_code;
+	uint64_t time_us = usage.ru_utime.tv_sec * 1000000ULL + usage.ru_utime.tv_usec +
+		usage.ru_stime.tv_sec * 1000000ULL + usage.ru_stime.tv_usec;
+	uint64_t mem_kb = usage.ru_maxrss;
+
+	exe_usage->time_us = time_us; exe_usage->mem_kb = mem_kb;
+
+	if (WIFEXITED(status)) return WEXITSTATUS(status);
+
+	if (WIFSIGNALED(status)) {
+		int sig = WTERMSIG(status);
+
+		if (sig == SIGXCPU) {
+			return EXECUTE_TLE;
+		} if (sig == SIGSYS) {
+			return EXECUTE_SIGSYS;
+		} if (sig == SIGSEGV) {
+			if (mem_kb * 1000ULL > problem_set->limit.as_mb) {
+				return EXECUTE_MLE;
+			} else {
+				return EXECUTE_SIGSEGV;
+			}
+		} if (sig == SIGKILL) {
+			return EXECUTE_SIGKILL;
 		}
+
+		return EXECUTE_UNKNOW;
+	}
+
+	return EXECUTE_UNKNOW;
+err_out:
+	if (shm_fd >= 0) close(shm_fd); shm_fd = -1;
+	return EXECUTE_UNKNOW;
+}
+
+execute_status_t execute(
+	sandbox_path_t *sandbox_path,
+	problem_set_t *problem_set,
+	execute_resource_t *exe_usage)
+{
+	if (sandbox_path == NULL ||
+		problem_set == NULL ||
+		exe_usage == NULL) {
+		return EXECUTE_UNKNOW;
+	}
+
+	char str_shm_fd[32];
+	char str_exp_fd[32];
+	char str_shm_size[32];
+	char str_exp_size[32];
+
+	int input_fd = -1;
+	int shm_fd = -1;
+	off_t shm_size = problem_set->max_result_size;
+	int output_fd = -1;
+	off_t output_size = -1;
+	int exp_fd = -1;
+
+	execute_status_t ret_err = EXECUTE_UNKNOW;
+
+	TRY_GIVE_ERR(open(problem_set->input_path, O_RDONLY), input_fd, EXECUTE_NO_INPUT);
+
+	TRY_GIVE(memfd_create_wrap("pj_shm", problem_set->max_result_size), shm_fd);
+	TRY_NOEQU(copy_fd(input_fd, shm_fd), COPY_FD_SUCCESS);
+
+	close(input_fd); input_fd = -1;
+
+	pid_t parent_pid = fork();
+
+	if (parent_pid < 0) {
+		perror("fork");
 		goto err_out;
 	}
 
-	fd_output_file = open(problem_set->output_path, O_RDONLY);
-	if (fd_output_file < 0) {
-		ret = EXECUTE_NO_OUTPUT;
+	if (parent_pid == 0) {
+		execute_status_t ret = execute_isolate(
+			sandbox_path,
+			problem_set,
+			exe_usage,
+			shm_fd, shm_size);
+
+		close(shm_fd); shm_fd = -1;
+		_exit(ret);
+	}
+
+	int parent_status;
+	TRY(waitpid(parent_pid, &parent_status, 0));
+
+	if (!WIFEXITED(parent_status)) goto err_out;
+
+	int code = WEXITSTATUS(parent_status);
+	if (code != EXECUTE_OK) {
+		if (IS_EXECUTE_STATUS(code)) ret_err = code;
 		goto err_out;
 	}
 
-	off_t output_size = lseek(fd_output_file, 0, SEEK_END);
-	if (output_size < 0) {
-		goto err_out;
-	}
+	TRY_GIVE_ERR(open(problem_set->output_path, O_RDONLY), output_fd, EXECUTE_NO_OUTPUT);
+	TRY_GIVE(lseek(output_fd, 0, SEEK_END), output_size);
+	lseek(output_fd, 0, SEEK_SET);
 
-	lseek(fd_output_file, 0, SEEK_SET);
+	TRY_GIVE(memfd_create_wrap("pj_exp", output_size), exp_fd);
+	TRY_NOEQU(copy_fd(output_fd, exp_fd), COPY_FD_SUCCESS);
 
-	fd_exp = memfd_create_wrap("pj_exp", output_size + 32);
-	if (fd_exp < 0) {
-		goto err_out;
-	}
+	close(output_fd); output_fd = -1;
 
-	if (copy_fd(fd_output_file, fd_exp) != COPY_FD_SUCCESS) {
-		goto err_out;
-	}
-
-	close(fd_output_file); fd_output_file = -1;
-
-	char str_fd_shm[32];
-	char str_fd_exp[32];
-	char str_input_size[32];
-	char str_output_size[32];
-	snprintf(str_fd_shm, sizeof(str_fd_shm), "%d", fd_shm);
-	snprintf(str_fd_exp, sizeof(str_fd_exp), "%d", fd_exp);
-	snprintf(str_input_size, sizeof(str_input_size), "%d", input_size);
-	snprintf(str_output_size, sizeof(str_output_size), "%d", output_size);
+	snprintf(str_shm_fd, sizeof(str_shm_fd), "%d", shm_fd);
+	snprintf(str_exp_fd, sizeof(str_exp_fd), "%d", exp_fd);
+	snprintf(str_shm_size, sizeof(str_shm_size), "%lld", shm_size);
+	snprintf(str_exp_size, sizeof(str_exp_size), "%lld", output_size);
 
 	char *argv[] = {
 		problem_set->checker_path,
-		str_fd_shm,
-		str_fd_exp,
-		str_input_size,
-		str_output_size,
-		NULL
+		str_shm_fd,
+		str_exp_fd,
+		str_shm_size,
+		str_exp_size,
+		NULL,
 	};
 
-	pid_t check_pid = fork();
+	pid_t checker_pid = fork();
 
-	if (check_pid < 0) {
+	if (checker_pid < 0) {
 		goto err_out;
 	}
 
-	if (check_pid == 0) {
+	if (checker_pid == 0) {
 		execv(problem_set->checker_path, argv);
 		_exit(EXECUTE_UNKNOW);
 	}
 
-	int check_status;
-	pid_t wait_check_pid = waitpid(check_pid, &check_status, 0);
+	int checker_status;
+	int checker_wait;
+	checker_wait = waitpid(checker_pid, &checker_status, 0);
 
-	close(fd_shm); fd_shm = -1;
-	close(fd_exp); fd_exp = -1;
+	close(shm_fd); shm_fd = -1;
+	close(exp_fd); exp_fd = -1;
 
-	if (wait_check_pid < 0 || !WIFEXITED(check_status)) {
-		return EXECUTE_UNKNOW;
+	if (checker_wait < 0 || !WIFEXITED(checker_status)) {
+		goto err_out;
 	}
 
-	execute_status_t check_code = WEXITSTATUS(check_status);
-	if (is_execute_status(check_code)) {
-		return check_code;
+	int checker_exit = WEXITSTATUS(checker_status);
+	if (checker_exit == 0) {
+		return EXECUTE_OK;
 	} else {
-		return EXECUTE_UNKNOW;
+		return EXECUTE_WA;
 	}
-
 
 err_out:
-	if (fd_input_file > 0) {
-		close(fd_input_file);
+	if (input_fd >= 0) {
+		close(input_fd);
+		input_fd = -1;
 	}
-	if (fd_shm > 0) {
-		close(fd_shm);
+	if (shm_fd >= 0) {
+		close(shm_fd);
+		shm_fd = -1;
 	}
-	if (fd_output_file > 0) {
-		close(fd_output_file);
+	if (output_fd >= 0) {
+		close(output_fd);
+		output_fd = -1;
 	}
-	if (fd_exp > 0) {
-		close(fd_exp);
+	if (exp_fd >= 0) {
+		close(exp_fd);
+		exp_fd = -1;
 	}
 
-	return ret;
+	return ret_err;
 }
-
-/* tmp */
-int main()
-{
-	sandbox_path_t sandbox_path;
-	snprintf(sandbox_path.base, sizeof(sandbox_path.base), "/tmp/pj/runtime");
-
-	problem_set_t problem_set;
-	snprintf(problem_set.input_path, sizeof(problem_set.input_path),
-		"/tmp/pj_pro/0/input0.bin");
-	snprintf(problem_set.output_path, sizeof(problem_set.output_path),
-		"/tmp/pj_pro/0/output0.bin");
-	snprintf(problem_set.checker_path, sizeof(problem_set.checker_path),
-		"/tmp/pj_pro/0/checker.out");
-
-
-	execute_status_t exe = execute(&sandbox_path, &problem_set);
-
-	if (exe == EXECUTE_OK) {
-		printf("SUCCES\n");
-	} else {
-		printf("FAIL\n");
-	}
-
-	return 0;
-}
-/* end tmp */

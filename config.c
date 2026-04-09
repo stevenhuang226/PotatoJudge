@@ -5,4 +5,5 @@
 
 #include "./include/judge/config.h"
 
+
 judge_config_t g_judge_config;

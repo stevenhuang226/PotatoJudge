@@ -136,6 +136,7 @@ compile_status_t compile_gcc(const sandbox_path_t *sandbox_path)
 		"gcc",
 		"solution.c",
 		"driver.c",
+		"-static",
 		"-o", "a.out",
 		NULL);
 
