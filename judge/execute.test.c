@@ -45,15 +45,16 @@ int main()
 		"/tmp/pj_pro/0/output0.bin");
 	snprintf(problem_set.checker_path, sizeof(problem_set.checker_path),
 		"/tmp/pj_pro/0/checker.out");
-	problem_set.limit_time_s = 2;
-	problem_set.limit_as_mb = 128;
-	problem_set.limit_stack_mb = 8;
-	problem_set.limit_file_size_mb = 64;
-	problem_set.limit_process = 4;
+
+	problem_set.limit.time_s = 2;
+	problem_set.limit.as_mb = 128;
+	problem_set.limit.stack_mb = 8;
+	problem_set.limit.file_mb = 64;
+	problem_set.limit.process = 4;
+
+	problem_set.max_result_size = 12800;
 
 	execute_resource_t exe_usage;
-
-
 	execute_status_t exe = execute(&sandbox_path, &problem_set, &exe_usage);
 
 	printf("time_us: %llu, mem_kb: %llu\n", exe_usage.time_us, exe_usage.mem_kb);

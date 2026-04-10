@@ -19,13 +19,14 @@ execute_status_t execute_judge(
 	problem_limit_t *problem_limit,
 	int shm_fd, off_t shm_size)
 {
+	execute_status_t ret_err = EXECUTE_UNKNOW;
+
 	if (sandbox_path == NULL ||
 		problem_limit == NULL ||
 		shm_fd < 0 || shm_size < 0) {
 		goto err_out;
 	}
 
-	execute_status_t ret_err = EXECUTE_UNKNOW;
 	char str_shm_fd[32];
 	char str_shm_size[32];
 	snprintf(str_shm_fd, sizeof(str_shm_fd), "%d", shm_fd);
@@ -33,7 +34,7 @@ execute_status_t execute_judge(
 
 	TRY(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
 	TRY(chdir(sandbox_path->base) < 0);
-	TRY(chdir("."));
+	TRY(chroot("./"));
 	TRY(chdir("/"));
 
 	TRY(set_limit(problem_limit));
@@ -48,10 +49,10 @@ execute_status_t execute_judge(
 
 	execv(COMPILED_USER_CODE_NAME, argv);
 
-	_exit(EXECUTE_UNKNOW);
+	return EXECUTE_UNKNOW;
 err_out:
 	if (shm_fd >= 0) close(shm_fd); shm_fd = -1;
-	_exit(ret_err);
+	return ret_err;
 }
 
 execute_status_t execute_isolate(
@@ -96,7 +97,7 @@ execute_status_t execute_isolate(
 	pid_t judge_pid = fork();
 
 	if (judge_pid < 0) {
-		perror("fork");
+		perror("judge fork");
 		goto err_out;
 	}
 
@@ -105,8 +106,7 @@ execute_status_t execute_isolate(
 			sandbox_path,
 			&(problem_set->limit),
 			shm_fd, shm_size);
-
-		close(shm_fd);
+		close(shm_fd); shm_fd = -1;
 		_exit(ret);
 	}
 
@@ -166,6 +166,7 @@ execute_status_t execute(
 	char str_exp_size[32];
 
 	int input_fd = -1;
+	off_t input_size = -1;
 	int shm_fd = -1;
 	off_t shm_size = problem_set->max_result_size;
 	int output_fd = -1;
@@ -175,8 +176,16 @@ execute_status_t execute(
 	execute_status_t ret_err = EXECUTE_UNKNOW;
 
 	TRY_GIVE_ERR(open(problem_set->input_path, O_RDONLY), input_fd, EXECUTE_NO_INPUT);
+	TRY_GIVE(lseek(input_fd, 0, SEEK_END), input_size);
+	lseek(input_fd, 0, SEEK_SET);
 
-	TRY_GIVE(memfd_create_wrap("pj_shm", problem_set->max_result_size), shm_fd);
+	if (shm_size < input_size) {
+		perror("max result size too small");
+		goto err_out;
+	}
+
+	TRY_GIVE(memfd_create_wrap("pj_shm", shm_size), shm_fd);
+
 	TRY_NOEQU(copy_fd(input_fd, shm_fd), COPY_FD_SUCCESS);
 
 	close(input_fd); input_fd = -1;
@@ -236,6 +245,7 @@ execute_status_t execute(
 	pid_t checker_pid = fork();
 
 	if (checker_pid < 0) {
+		perror("checker fork");
 		goto err_out;
 	}
 
