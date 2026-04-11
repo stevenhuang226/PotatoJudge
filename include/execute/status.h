@@ -7,7 +7,7 @@ typedef enum {
 
 	EXECUTE_RE,		// runtime error
 	EXECUTE_SIGSEGV,	// segment fault (maybe same as runtime error)
-	EXECUTE_SIGSYS,
+	EXECUTE_SIGSYS,		// use some banned syscall
 	EXECUTE_SIGABRT,	// abort() called
 	EXECUTE_SIGFPE,		// divide by zero, floating error
 	EXECUTE_SIGILL,		// illegal instruction
