@@ -1,6 +1,7 @@
 #include "../config.c"
 #include "../include/judge/task.h"
 #include "../include/judge/status.h"
+#include "../include/utils/potato_try.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -9,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-/* initialization config(s) */
 int8_t load_config()
 {
 	FILE *fp = fopen(CONF_PATH, "r");
@@ -31,67 +31,64 @@ int8_t load_config()
 
 int8_t create_sandbox_paths()
 {
-	snprintf(g_judge_config.sandbox_path.base, sizeof(g_judge_config.sandbox_path.base),
-			"%s/runtime",
-			g_judge_config.base_workspace);
+	int8_t ret_err = -1;
 
+	snprintf(g_judge_config.sandbox_path.base, sizeof(g_judge_config.sandbox_path.base),
+		"%s/runtime", g_judge_config.base_workspace);
 	if (mkdir(g_judge_config.sandbox_path.base, 0775) != 0 && errno != EEXIST) {
 		perror("create sandbox path base");
-		return -1;
+		goto err_out;
 	}
 
 	snprintf(g_judge_config.sandbox_path.usr, sizeof(g_judge_config.sandbox_path.usr),
-			"%s/usr",
-			g_judge_config.sandbox_path.base);
+		"%s/usr", g_judge_config.sandbox_path.base);
 	if (mkdir(g_judge_config.sandbox_path.usr, 0775) != 0 && errno != EEXIST) {
 		perror("create sandbox path usr");
-		return -1;
+		goto err_out;
 	}
 
 	snprintf(g_judge_config.sandbox_path.lib, sizeof(g_judge_config.sandbox_path.lib),
-			"%s/lib",
-			g_judge_config.sandbox_path.base);
+		"%s/lib", g_judge_config.sandbox_path.base);
 	if (mkdir(g_judge_config.sandbox_path.lib, 0775) != 0 && errno != EEXIST) {
 		perror("create sandbox path lib");
-		return -1;
+		goto err_out;
 	}
 
 	snprintf(g_judge_config.sandbox_path.lib64, sizeof(g_judge_config.sandbox_path.lib64),
-			"%s/lib64",
-			g_judge_config.sandbox_path.base);
+		"%s/lib64", g_judge_config.sandbox_path.base);
 	if (mkdir(g_judge_config.sandbox_path.lib64, 0775) != 0 && errno != EEXIST) {
 		perror("create sandbox path lib64");
-		return -1;
+		goto err_out;
 	}
 
 	snprintf(g_judge_config.sandbox_path.tmp, sizeof(g_judge_config.sandbox_path.tmp),
-			"%s/tmp",
-			g_judge_config.sandbox_path.base);
+		"%s/tmp", g_judge_config.sandbox_path.base);
 	if (mkdir(g_judge_config.sandbox_path.tmp, 0775) < 0 && errno != EEXIST) {
 		perror("create sandbox path tmp");
-		return -1;
+		goto err_out;
 	}
 	chmod(g_judge_config.sandbox_path.tmp, 01777); // mkdir cannot set 01777, request another chmod
 
 	snprintf(g_judge_config.sandbox_path.dev, sizeof(g_judge_config.sandbox_path.dev),
-			"%s/dev",
-			g_judge_config.sandbox_path.base);
+		"%s/dev", g_judge_config.sandbox_path.base);
 	if (mkdir(g_judge_config.sandbox_path.dev, 0775) < 0 && errno != EEXIST) {
 		perror("create sandbox path dev");
-		return -1;
+		goto err_out;
 	}
 
 	snprintf(g_judge_config.sandbox_path.dev_null, sizeof(g_judge_config.sandbox_path.dev_null),
-			"%s/null",
-			g_judge_config.sandbox_path.dev);
+		"%s/null", g_judge_config.sandbox_path.dev);
 	int dev_null_fd = open(g_judge_config.sandbox_path.dev_null, O_CREAT | O_RDWR, 0666);
 	if (dev_null_fd < 0) {
 		perror("create sandbox path dev null");
-		return -1;
+		goto err_out;
 	}
 	close(dev_null_fd);
 
 	return 0;
+
+err_out:
+	return ret_err;
 }
 
 /* init function */

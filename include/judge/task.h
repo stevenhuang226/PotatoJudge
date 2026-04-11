@@ -1,9 +1,8 @@
 #ifndef JUDGE_TASK_H
 #define JUDGE_TASK_H
 
-#include <stdio.h>
 #include <stdint.h>
-#include "./compiler.h"
+#include "../compile/types.h"
 
 typedef struct {
 	uint32_t submission_id;

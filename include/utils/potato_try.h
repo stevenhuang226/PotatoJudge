@@ -1,4 +1,3 @@
-
 #ifndef PT_TRY
 #define TRY(func) \
 	do { \

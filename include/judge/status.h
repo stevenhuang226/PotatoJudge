@@ -1,5 +1,5 @@
-#ifndef STATUS_H
-#define STATUS_H
+#ifndef JUDGE_STATUS_H
+#define JUDGE_STATUS_H
 
 #include <stdio.h>
 

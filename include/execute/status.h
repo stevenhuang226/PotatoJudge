@@ -1,7 +1,5 @@
-#ifndef EXECUTE_H
-#define EXECUTE_H
-
-#include <stdint.h>
+#ifndef EXECUTE_STATUS_H
+#define EXECUTE_STATUS_H
 
 typedef enum {
 	EXECUTE_OK,		// accepted
@@ -26,11 +24,6 @@ typedef enum {
 
 	EXECUTE_UNKNOW,
 } execute_status_t;
-
-typedef struct {
-	uint64_t time_us;
-	uint64_t mem_kb;
-} execute_resource_t;
 
 #define IS_EXECUTE_STATUS(code) ((code) >= EXECUTE_OK && (code) <= EXECUTE_UNKNOW)
 

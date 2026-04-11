@@ -1,9 +1,6 @@
-#define _GNU_SOURCE
+#include "./include/global.h"
+#include "./include/config.h"
 
 #define CONF_PATH "/tmp/etc/judge.conf"
-#define MAX_PATH_LENGTH 1024
-
-#include "./include/judge/config.h"
-
 
 judge_config_t g_judge_config;

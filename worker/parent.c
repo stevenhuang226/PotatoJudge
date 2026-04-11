@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "./compile.c"
+#include "../compile/compile.c";
 
 compile_status_t judge_prepare(const judge_task_t *task)
 {
