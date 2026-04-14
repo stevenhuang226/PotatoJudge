@@ -1,4 +1,4 @@
-#include "../include/global.c"
+#include "../include/global.h"
 #include "../utils/copy_fd.c"
 #include "../utils/memfd_create.c"
 #include "../include/utils/potato_try.h"
@@ -11,8 +11,9 @@
 #include <sys/resource.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
-#include <sched.h>
 #include <string.h>
+#include <stdio.h>
+#include <sched.h>
 
 #include "./isolate.c"
 

@@ -1,6 +1,8 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 int memfd_create_wrap(const char *name, const off_t limit)
 {

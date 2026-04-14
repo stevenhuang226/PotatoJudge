@@ -6,17 +6,24 @@
 
 #include "../utils/copy_file.c"
 
+#include "../compile/compile.c"
+#include "../execute/execute.c"
+
 #include <stdlib.h>
 
-#define L_LIMIT_FSIZE_MB 1
-#define L_LIMIT_NPROC 1
+/*
+ * the return array judge_result_t* size of *ret_case_count.
+ * *err_code: when return array == NULL. Check this value. If return isn't NULL, this value should write as judge_accept
+ */
 
-judge_result_t *submission(const judge_task_t *task, int case_count, judge_status_t *err_code)
+#define L_LIMIT_FSIZE_MB 1 // limit that used for limit maximum file size. write with rlimit, function will multiply 1024 * 1024
+#define L_LIMIT_NPROC 1
+judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
 {
 	judge_result_t *ret_err = NULL;
-	case_count = -1;
+	int case_count = -1;
 
-	if (task == NULL) {
+	if (task == NULL || ret_case_count == NULL || err_code == NULL) {
 		goto err_out;
 	}
 
@@ -64,7 +71,22 @@ judge_result_t *submission(const judge_task_t *task, int case_count, judge_statu
 		goto err_out;
 	}
 
-	int case_count = -1;
+	compile_status_t compile_stat = compile(&g_judge_config.sandbox_path, task->compiler_type);
+	switch (compile_stat) {
+	case COMPILE_FAIL:
+		*err_code = JUDGE_COMPILE_ERROR;
+		goto err_out;
+	case COMPILE_NO_SOLUTION:
+		*err_code = JUDGE_NO_SOLUTION;
+		goto err_out;
+	case COMPILE_NO_DRIVER:
+		*err_code = JUDGE_NO_DRIVER;
+		goto err_out;
+	case COMPILE_UNKNOW:
+		*err_code = JUDGE_UNKNOW_ERROR;
+		goto err_out;
+	}
+
 	problem_limit_t l_limit;
 	l_limit.file_mb = L_LIMIT_FSIZE_MB;
 	l_limit.process = L_LIMIT_NPROC;
@@ -82,9 +104,69 @@ judge_result_t *submission(const judge_task_t *task, int case_count, judge_statu
 	}
 	fclose(fp);
 
-	for (int id = 0; id < case_count; ++id) {
-		// TODO loop to fill problem_set_t and execute it
+	judge_result_t *result = malloc(case_count * sizeof(judge_result_t));
+	if (result == NULL) {
+		*err_code = JUDGE_UNKNOW_ERROR;
+		goto err_out;
 	}
+
+	for (int id = 0; id < case_count; ++id) {
+		problem_set_t problem_set;
+
+		problem_set.limit.time_s = l_limit.time_s;
+		problem_set.limit.as_mb = l_limit.as_mb;
+		problem_set.limit.stack_mb = l_limit.stack_mb;
+		problem_set.limit.file_mb = l_limit.file_mb;
+		problem_set.limit.process = l_limit.process;
+		snprintf(problem_set.input_path, sizeof(problem_set.input_path),
+			"%s/%u/input%d.bin",
+			g_judge_config.base_problem, task->problem_id, id);
+		snprintf(problem_set.output_path, sizeof(problem_set.output_path),
+			"%s/%u/output%d.bin",
+			g_judge_config.base_problem, task->problem_id, id);
+		snprintf(problem_set.checker_path, sizeof(problem_set.checker_path),
+			"%s/%u/checker.out",
+			g_judge_config.base_problem, task->problem_id);
+
+		execute_resource_t usage;
+		execute_status_t ret = execute(&g_judge_config.sandbox_path, &problem_set, &usage);
+
+		judge_status_t js;
+
+		switch (ret) {
+		case EXECUTE_OK:
+			js = JUDGE_ACCEPT;
+			break;
+		case EXECUTE_WA:
+			js = JUDGE_WRONG_ANSWER;
+			break;
+		case EXECUTE_SIGSEGV:
+			js = JUDGE_SIGSEGV;
+			break;
+		case EXECUTE_SIGSYS:
+			js = JUDGE_SIGSYS;
+			break;
+		case EXECUTE_TLE:
+			js = JUDGE_TIME_LIMIT;
+			break;
+		case EXECUTE_MLE:
+			js = JUDGE_MEMORY_LIMIT;
+			break;
+		case EXECUTE_UNKNOW:
+		default:
+			js = JUDGE_UNKNOW_ERROR;
+			break;
+		}
+
+		result[id].id = id;
+		result[id].status = js;
+		result[id].usage.time_us = usage.time_us;
+		result[id].usage.mem_kb = usage.mem_kb;
+	}
+
+	*err_code = JUDGE_ACCEPT;
+	*ret_case_count = case_count;
+	return result;
 
 err_out:
 	return ret_err;
