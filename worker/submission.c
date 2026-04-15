@@ -18,6 +18,12 @@
 
 #define L_LIMIT_FSIZE_MB 1 // limit that used for limit maximum file size. write with rlimit, function will multiply 1024 * 1024
 #define L_LIMIT_NPROC 1
+#define PROBLEM_CONFIG_CASE_COUNT "case_count=%d"
+#define PROBLEM_CONFIG_CPU "limit_time_s=%d"
+#define PROBLEM_CONFIG_AS "limit_as_mb=%d"
+#define PROBLEM_CONFIG_STACK "limit_stack_mb=%d"
+#define PROBLEM_CONFIG_MAX_RES "expect_max_result_mb=%lld"
+
 judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
 {
 	judge_result_t *ret_err = NULL;
@@ -33,7 +39,7 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 	char sandbox_driver_path[MAX_PATH_LENGTH];
 	char problem_config_path[MAX_PATH_LENGTH];
 
-	char buffer[MAX_PATH_LENGTH];
+	char buffer[4096];
 
 	snprintf(solution_path, sizeof(solution_path),
 		"%s/%u/solution.c",
@@ -90,6 +96,7 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 	problem_limit_t l_limit;
 	l_limit.file_mb = L_LIMIT_FSIZE_MB;
 	l_limit.process = L_LIMIT_NPROC;
+	off_t max_result_size = -1;
 
 	FILE *fp = fopen(problem_config_path, "r");
 	if (!fp) {
@@ -97,10 +104,11 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 		goto err_out;
 	}
 	while (fgets(buffer, sizeof(buffer), fp)) {
-		sscanf(buffer, "case_count=%d", &case_count);
-		sscanf(buffer, "limit_time_s=%d", &(l_limit.time_s));
-		sscanf(buffer, "limit_as_mb=%d", &(l_limit.as_mb));
-		sscanf(buffer, "limit_stack_mb=%d", &(l_limit.stack_mb));
+		sscanf(buffer, PROBLEM_CONFIG_CASE_COUNT, &case_count);
+		sscanf(buffer, PROBLEM_CONFIG_CPU, &(l_limit.time_s));
+		sscanf(buffer, PROBLEM_CONFIG_AS, &(l_limit.as_mb));
+		sscanf(buffer, PROBLEM_CONFIG_STACK, &(l_limit.stack_mb));
+		sscanf(buffer, PROBLEM_CONFIG_MAX_RES, &max_result_size);
 	}
 	fclose(fp);
 
@@ -118,6 +126,9 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 		problem_set.limit.stack_mb = l_limit.stack_mb;
 		problem_set.limit.file_mb = l_limit.file_mb;
 		problem_set.limit.process = l_limit.process;
+
+		problem_set.max_result_size = max_result_size;
+
 		snprintf(problem_set.input_path, sizeof(problem_set.input_path),
 			"%s/%u/input%d.bin",
 			g_judge_config.base_problem, task->problem_id, id);

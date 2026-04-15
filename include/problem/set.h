@@ -9,7 +9,7 @@ typedef struct {
 	char output_path[MAX_PATH_LENGTH];	// output.bin path
 	char checker_path[MAX_PATH_LENGTH];	// checker.out path
 
-	int64_t max_result_size;		// expect maximum result size
+	off_t max_result_size;			// expect maximum result size
 
 	problem_limit_t limit;
 } problem_set_t;

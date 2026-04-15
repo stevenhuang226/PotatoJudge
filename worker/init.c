@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -92,7 +93,7 @@ err_out:
 
 int initialization()
 {
-	ret_err = -1;
+	int ret_err = -1;
 
 	TRY(load_config());
 	TRY(create_sandbox());

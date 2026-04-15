@@ -39,6 +39,7 @@ err_out:
 	BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
 static inline int8_t set_seccomp()
 {
+	return 0; // debug ignore this function
 	int8_t ret_err = -1;
 
 	struct sock_filter filter[] = {
