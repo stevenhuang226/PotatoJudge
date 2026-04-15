@@ -10,6 +10,4 @@ typedef struct {
 	sandbox_path_t sandbox_path;
 } judge_config_t;
 
-extern judge_config_t g_judge_config;
-
 #endif
