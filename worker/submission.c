@@ -6,8 +6,8 @@
 
 #include "../utils/copy_file.c"
 
-#include "../compile/compile.c"
-#include "../execute/execute.c"
+#include "../compile/entry.c"
+#include "../execute/entry.c"
 
 #include <stdlib.h>
 
@@ -77,7 +77,8 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 		goto err_out;
 	}
 
-	compile_status_t compile_stat = compile(&g_judge_config.sandbox_path, task->compiler_type);
+	compile_status_t compile_stat
+		= pj_compile_entry(&g_judge_config.sandbox_path, task->compiler_type);
 	switch (compile_stat) {
 	case COMPILE_FAIL:
 		*err_code = JUDGE_COMPILE_ERROR;
@@ -140,7 +141,7 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 			g_judge_config.base_problem, task->problem_id);
 
 		execute_resource_t usage;
-		execute_status_t ret = execute(&g_judge_config.sandbox_path, &problem_set, &usage);
+		execute_status_t ret = pj_execute_entry(&g_judge_config.sandbox_path, &problem_set, &usage);
 
 		judge_status_t js;
 

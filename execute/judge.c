@@ -11,7 +11,7 @@
 #include <sched.h>
 
 #define COMPILED_USER_CODE_NAME "./a.out"
-execute_status_t execute_judge(
+execute_status_t pj_execute_judge(
 	sandbox_path_t *sandbox_path,
 	problem_limit_t *problem_limit,
 	int shm_fd, off_t shm_size)

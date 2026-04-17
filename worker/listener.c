@@ -1,15 +1,18 @@
-#include <sys/socket.h>
 #include "../config.c"
-#include "../include/config.h"
+#include "../include/global.h"
 #include "../include/sandbox_path.h"
 #include "../include/worker/job_request.h"
 #include "../include/utils/potato_try.h"
 
+#include "./judge_entry.c"
+
+#include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
+#include <errno.h>
 
 #define SOCKET_PATH "/tmp/pj.sock"
-int setup_listener()
+int pj_setup_listener()
 {
 	int ret_err = -1;
 	int fd = -1;
@@ -35,24 +38,44 @@ err_out:
 	return ret_err;
 }
 
-int8_t listener_running = true;
+static void reap_children()
+{
+	for (;;) {
+		pid_t child_pid = waitpid(-1, NULL, WNOHANG);
+		if (child_pid > 0) {
+			continue;
+		}
 
-void handle_sigint(int sig)
+		if (child_pid == 0) {
+			break;
+		}
+
+		if (errno == EINTR) {
+			continue;
+		}
+
+		break;
+	}
+}
+
+int8_t listener_running = true;
+void listener_handle_sigint(int sig)
 {
 	listener_running = false;
 	return;
 }
 
-int8_t listen_submit()
+int8_t pj_listen_submit(int server_fd)
 {
 	int8_t ret_err = -1;
-	int server_fd = -1;
 
-	int job_count = 0;			// used for show how many judge run. Just for fun
+	signal(SIGTERM, listener_handle_sigint);
+	signal(SIGINT, listener_handle_sigint);
 
-	TRY_GIVE(setup_listener(), server_fd);
+	uint64_t job_count = 0;			// used for show how many judge run. Just for fun
+	while (listener_running) {
+		reap_children();		// take kernel child pid signal
 
-	for (;;) {
 		int client_fd = accept(server_fd, NULL, NULL);
 		if (client_fd < 0) {
 			if (! listener_running) break;
@@ -60,7 +83,7 @@ int8_t listen_submit()
 		}
 
 		job_request_t job;
-		ssize_t job_off;
+		ssize_t job_off = 0;
 		ssize_t job_size = (ssize_t)sizeof(job);
 
 		while (job_off < job_size) {
@@ -74,13 +97,24 @@ int8_t listen_submit()
 			job_off += rs;
 		}
 
+		close(client_fd);
+
 		if (job_off != job_size) {
 			goto skip;
 		}
 
-		/* create task to submission */
+		pid_t sub_pid = fork();
+		if (sub_pid < 0) {
+			goto skip;
+		}
+
+		if (sub_pid == 0) {
+			int8_t ret = pj_judge_entry(job.submission_id, job.problem_id);
+			_exit(ret);
+		}
+
+		++job_count;
 skip:
-		close(client_fd);
 	}
 
 	printf("run %d judge this time\n");

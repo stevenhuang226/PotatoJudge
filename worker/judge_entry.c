@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 #define SUB_CONFIG_COMPILER_TYPE "compiler_type=%d"
-int8_t frk_judge(uint32_t submission_id, uint32_t problem_id)
+int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 {
 	int8_t ret_err = -1;
 
@@ -19,10 +19,10 @@ int8_t frk_judge(uint32_t submission_id, uint32_t problem_id)
 		"%s/%u/detail.conf",
 		g_judge_config.base_submission, submission_id);
 
-
 	judge_task_t task;
 	task.submission_id = submission_id;
 	task.problem_id = problem_id;
+	task.compiler_type = COMPILER_NULL;
 
 	FILE *fp;
 	TRY_GIVE(fopen(str_sub_config_path, "r"), fp);

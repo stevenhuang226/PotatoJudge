@@ -20,7 +20,7 @@ static compiler_func type2compiler[COMPILER_COUNT] = {
 	[COMPILER_GPP] = compile_gpp,
 };
 
-int8_t exec_compiler(const compiler_type_t type)
+int8_t pj_exec_compiler(const compiler_type_t type)
 {
 	if (!IS_COMPILER_TYPE(type)) {
 		return -1;
@@ -33,7 +33,7 @@ int8_t exec_compiler(const compiler_type_t type)
 	return func();
 }
 
-compile_status_t compile_sandbox(
+compile_status_t pj_sandbox_compile(
 	const sandbox_path_t *sandbox_path,
 	const compiler_type_t compiler_type)
 {
@@ -76,7 +76,7 @@ compile_status_t compile_sandbox(
 	TRY_NOEQU(setrlimit(RLIMIT_CPU, &cpu), 0);
 	TRY_NOEQU(setrlimit(RLIMIT_AS, &as), 0);
 
-	TRY(exec_compiler(compiler_type));
+	TRY(pj_exec_compiler(compiler_type));
 err_out:
 	return ret_err;
 }
