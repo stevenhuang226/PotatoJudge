@@ -4,7 +4,8 @@
 #include "../include/judge/task.h"
 #include "../include/judge/result.h"
 
-#include"./submission.c"
+#include "./submission.c"
+#include "./response.c"
 
 #include <stdio.h>
 
@@ -15,8 +16,12 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 
 	char buffer[4096];
 	char str_sub_config_path[MAX_PATH_LENGTH];
+	char str_output_dir[MAX_PATH_LENGTH];
 	snprintf(str_sub_config_path, sizeof(str_sub_config_path),
 		"%s/%u/detail.conf",
+		g_judge_config.base_submission, submission_id);
+	snprintf(str_output_dir, sizeof(str_output_dir),
+		"%s/%u",
 		g_judge_config.base_submission, submission_id);
 
 	judge_task_t task;
@@ -38,9 +43,13 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	judge_status_t err_code;
 	judge_result_t *result = submission(&task, &case_count, &err_code);
 
-	/*
-	 * write response out
-	 */
+	if (result == NULL) {
+		goto err_out;
+	}
+
+	TRY(response(result, case_count, str_output_dir));
+
+	return 0;
 err_out:
 	return ret_err;
 }
