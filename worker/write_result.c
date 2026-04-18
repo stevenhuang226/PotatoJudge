@@ -28,7 +28,7 @@ static const char *judge_status_string[] = {
 #define WRITE_FNAME "judge.json"
 #define DONE_FNAME "done.json"
 #define MAX_CASE_TEXT_COUNT 200
-int8_t response(const judge_result_t *result,
+int8_t pj_write_result(const judge_result_t *result,
 	const int case_count,
 	const char *output_dir)
 {

@@ -4,8 +4,8 @@
 #include "../include/judge/task.h"
 #include "../include/judge/result.h"
 
-#include "./submission.c"
-#include "./response.c"
+#include "./submit.c"
+#include "./write_result.c"
 
 #include <stdio.h>
 
@@ -41,13 +41,13 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 
 	int case_count = -1;
 	judge_status_t err_code;
-	judge_result_t *result = submission(&task, &case_count, &err_code);
+	judge_result_t *result = pj_submit(&task, &case_count, &err_code);
 
 	if (result == NULL) {
 		goto err_out;
 	}
 
-	TRY(response(result, case_count, str_output_dir));
+	TRY(pj_write_result(result, case_count, str_output_dir));
 
 	return 0;
 err_out:

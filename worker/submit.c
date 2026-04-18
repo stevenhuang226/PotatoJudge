@@ -24,7 +24,7 @@
 #define PROBLEM_CONFIG_STACK "limit_stack_mb=%d"		// stack limit
 #define PROBLEM_CONFIG_MAX_RES "expect_max_result_mb=%lld"	// maximum result expect size (using for set shared memory)
 
-judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
+judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
 {
 	judge_result_t *ret_err = NULL;
 	int case_count = -1;
