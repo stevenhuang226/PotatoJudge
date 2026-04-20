@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 
-#define SUB_CONFIG_COMPILER_TYPE "compiler_type=%d"
 int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 {
 	int8_t ret_err = -1;
@@ -18,8 +17,8 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	char str_sub_config_path[MAX_PATH_LENGTH];
 	char str_output_dir[MAX_PATH_LENGTH];
 	snprintf(str_sub_config_path, sizeof(str_sub_config_path),
-		"%s/%u/detail.conf",
-		g_judge_config.base_submission, submission_id);
+		"%s/%u/%s",
+		g_judge_config.base_submission, submission_id, SUB_DETAIL_NAME);
 	snprintf(str_output_dir, sizeof(str_output_dir),
 		"%s/%u",
 		g_judge_config.base_submission, submission_id);
@@ -43,11 +42,12 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	judge_status_t err_code;
 	judge_result_t *result = pj_submit(&task, &case_count, &err_code);
 
-	if (result == NULL) {
+	if (result == NULL || case_count < 0) {
 		goto err_out;
 	}
 
 	TRY(pj_write_result(result, case_count, str_output_dir));
+	free(result);
 
 	return 0;
 err_out:

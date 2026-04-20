@@ -58,22 +58,25 @@ static void reap_children()
 	}
 }
 
-int8_t listener_running = true;
+int8_t pj_listener_running = true;
 void listener_handle_sigint(int sig)
 {
-	listener_running = false;
+	pj_listener_running = false;
 	return;
 }
 
-int8_t pj_listen_submit(int server_fd)
+int8_t pj_listen_submit()
 {
 	int8_t ret_err = -1;
+	int server_fd = -1
 
 	signal(SIGTERM, listener_handle_sigint);
 	signal(SIGINT, listener_handle_sigint);
 
+	TRY_GIVE(pj_setup_listener(), server_fd);
+
 	uint64_t job_count = 0;			// used for show how many judge run. Just for fun
-	while (listener_running) {
+	while (pj_listener_running) {
 		reap_children();		// take kernel child pid signal
 
 		int client_fd = accept(server_fd, NULL, NULL);

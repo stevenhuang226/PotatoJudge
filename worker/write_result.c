@@ -61,6 +61,7 @@ int8_t pj_write_result(const judge_result_t *result,
 	if (w < 0 || w >= bfr_size - offset) {
 		ret_err = -2; goto err_out;
 	}
+	offset += w;
 	for (int i = 0; i < case_count; ++i) {
 		const judge_result_t *curr = &result[i];
 
