@@ -85,13 +85,16 @@ int8_t pj_write_result(const judge_result_t *result,
 	}
 	offset += w;
 
-	TRY_GIVE(open(str_write_path, O_CREAT | O_WRONLY), fd);
+	TRY_GIVE(open(str_write_path, O_CREAT | O_WRONLY, 0644), fd);
 
 	ssize_t written = 0;
 	ssize_t exp_len = offset;
 	offset = 0;
 	while (written < exp_len) {
-		TRY_GIVE(write(fd, buffer+offset, exp_len-offset), w);
+		w = write(fd, buffer+offset, exp_len-offset);
+		if (w <= 0) {
+			goto err_out;
+		}
 		written += w;
 	}
 	close(fd); fd = -1;
