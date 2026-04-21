@@ -7,6 +7,7 @@
 #include "./judge_entry.c"
 
 #include <sys/socket.h>
+#include <signal.h>
 #include <unistd.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -58,30 +59,38 @@ static void reap_children()
 	}
 }
 
-int8_t pj_listener_running = true;
+volatile sig_atomic_t pj_running = 1;
 void listener_handle_sigint(int sig)
 {
-	pj_listener_running = false;
+	pj_running = false;
 	return;
 }
 
 int8_t pj_listen_submit()
 {
 	int8_t ret_err = -1;
-	int server_fd = -1
+	int server_fd = -1;
 
-	signal(SIGTERM, listener_handle_sigint);
-	signal(SIGINT, listener_handle_sigint);
+	struct sigaction act;
+	act.sa_handler = listener_handle_sigint;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction(SIGINT, &act, NULL);
+	sigaction(SIGTERM, &act, NULL);
 
 	TRY_GIVE(pj_setup_listener(), server_fd);
 
 	uint64_t job_count = 0;			// used for show how many judge run. Just for fun
-	while (pj_listener_running) {
+	while (pj_running) {
 		reap_children();		// take kernel child pid signal
 
 		int client_fd = accept(server_fd, NULL, NULL);
 		if (client_fd < 0) {
-			if (! listener_running) break;
+			if (errno == EINTR &&
+				!pj_running) {
+				break;
+			}
 			continue;
 		}
 
@@ -94,7 +103,11 @@ int8_t pj_listen_submit()
 				(void *)&job + job_off,
 				job_size - job_off);
 
-			if (rs <= 0) {
+			if (rs < 0) {
+				if (errno == EINTR) continue;	// got error but (errno == EINTR) allow to retry
+				break;
+			}
+			if (rs == 0) {
 				break;
 			}
 			job_off += rs;
@@ -120,7 +133,7 @@ int8_t pj_listen_submit()
 skip:
 	}
 
-	printf("run %d judge this time\n");
+	printf("\nrun %d judge this time\n", job_count);
 	printf("recive signal. Exit\n");
 	return 0;
 
