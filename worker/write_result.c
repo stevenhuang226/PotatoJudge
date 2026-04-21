@@ -1,7 +1,3 @@
-/*
- * This function should take response out
- */
-
 #include "../config.c"
 #include "../include/global.h"
 #include "../include/judge/result.h"
@@ -79,7 +75,7 @@ int8_t pj_write_result(const judge_result_t *result,
 	if (case_count > 1) {
 		--offset;	// remove trail ","
 	}
-	w = snprintf(buffer + offset, bfr_size - offset, "]}");
+	w = snprintf(buffer + offset, bfr_size - offset, "]}\n");
 	if (w < 0 || w >= bfr_size - offset) {
 		ret_err = -2; goto err_out;
 	}
