@@ -9,12 +9,11 @@ int main()
 {
 	int ret_err = -1;
 
-	initialization();
-	int server_fd = -1;
-	TRY_GIVE(pj_setup_listener(), server_fd);
-	pj_listen_submit(server_fd);
+	TRY(initialization());
+	int8_t listen = pj_listen_submit();
 
-	return 0;
+	return listen;
+
 err_out:
 	return ret_err;
 }
