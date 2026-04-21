@@ -28,9 +28,8 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	task.problem_id = problem_id;
 	task.compiler_type = COMPILER_NULL;
 
-	FILE *fp;
-	TRY_GIVE(fopen(str_sub_config_path, "r"), fp);
-
+	FILE *fp = fopen(str_sub_config_path, "r");
+	if (! fp) goto err_out;
 	while (fgets(buffer, sizeof(buffer), fp)) {
 		sscanf(buffer, SUB_CONFIG_COMPILER_TYPE, &task.compiler_type);
 	}

@@ -92,7 +92,7 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 	off_t max_result_size = -1;
 
 	FILE *fp = fopen(problem_config_path, "r");
-	if (!fp) {
+	if (! fp) {
 		*err_code = JUDGE_NO_PROBLEM_CONFIG;
 		goto err_out;
 	}
