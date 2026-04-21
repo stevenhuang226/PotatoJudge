@@ -13,7 +13,7 @@
 #include <sched.h>
 #include <fcntl.h>
 
-compile_status_t compile_isolate(
+compile_status_t pj_compile_isolate(
 	const sandbox_path_t *sandbox_path,
 	const compiler_type_t compiler_type)
 {
@@ -55,7 +55,7 @@ compile_status_t compile_isolate(
 	}
 
 	if (sandbox_pid == 0) {
-		int ret = compile_sandbox(sandbox_path, compiler_type);
+		int ret = pj_sandbox_compile(sandbox_path, compiler_type);
 		_exit(ret);
 	}
 

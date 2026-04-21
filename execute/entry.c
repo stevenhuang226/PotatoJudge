@@ -17,7 +17,7 @@
 
 #include "./isolate.c"
 
-execute_status_t execute(
+execute_status_t pj_execute_entry(
 	sandbox_path_t *sandbox_path,
 	problem_set_t *problem_set,
 	execute_resource_t *exe_usage)
@@ -66,7 +66,7 @@ execute_status_t execute(
 	}
 
 	if (parent_pid == 0) {
-		execute_status_t ret = execute_isolate(
+		execute_status_t ret = pj_execute_isolate(
 			sandbox_path,
 			problem_set,
 			exe_usage,

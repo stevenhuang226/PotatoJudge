@@ -1,4 +1,8 @@
 #ifndef PT_TRY
+
+#include <stdio.h>
+#include <errno.h>
+
 #define TRY(func) \
 	do { \
 		if ((func) < 0) { \

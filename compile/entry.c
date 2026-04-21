@@ -8,7 +8,7 @@
 
 #include <sys/wait.h>
 
-compile_status_t compile(const sandbox_path_t *sandbox_path, const compiler_type_t compiler_type)
+compile_status_t pj_compile_entry(const sandbox_path_t *sandbox_path, const compiler_type_t compiler_type)
 {
 	compile_status_t ret_err = COMPILE_UNKNOW;
 
@@ -24,7 +24,7 @@ compile_status_t compile(const sandbox_path_t *sandbox_path, const compiler_type
 	}
 
 	if (parent_pid == 0) {
-		int ret = compile_isolate(sandbox_path, compiler_type);
+		int ret = pj_compile_isolate(sandbox_path, compiler_type);
 		_exit(ret);
 	}
 

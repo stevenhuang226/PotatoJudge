@@ -39,36 +39,55 @@ err_out:
 	BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
 static inline int8_t set_seccomp()
 {
-	return 0; // debug ignore this function
 	int8_t ret_err = -1;
 
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+			SC_ALLOW(SYS_read),
+			SC_ALLOW(SYS_write),
+			SC_ALLOW(SYS_exit),
+			SC_ALLOW(SYS_exit_group),
 
-		SC_ALLOW(SYS_read),
-		SC_ALLOW(SYS_write),
-		SC_ALLOW(SYS_exit),
-		SC_ALLOW(SYS_exit_group),
-		SC_ALLOW(SYS_access),
-		SC_ALLOW(SYS_openat),
-		SC_ALLOW(SYS_brk),
-		SC_ALLOW(SYS_mmap),
-		SC_ALLOW(SYS_munmap),
-		SC_ALLOW(SYS_fstat),
-		SC_ALLOW(SYS_close),
-		SC_ALLOW(SYS_execve),
-		SC_ALLOW(SYS_mprotect),
-		SC_ALLOW(SYS_madvise),
-		SC_ALLOW(SYS_futex),
-		SC_ALLOW(SYS_clock_gettime),
-		SC_ALLOW(SYS_prlimit64),
-		SC_ALLOW(SYS_arch_prctl),
-		SC_ALLOW(SYS_set_tid_address),
-		SC_ALLOW(SYS_set_robust_list),
-		SC_ALLOW(SYS_rt_sigaction),
-		SC_ALLOW(SYS_rt_sigprocmask),
-		SC_ALLOW(SYS_rt_sigreturn),
+			SC_ALLOW(SYS_brk),
+			SC_ALLOW(SYS_mmap),
+			SC_ALLOW(SYS_munmap),
+			SC_ALLOW(SYS_mprotect),
+			SC_ALLOW(SYS_madvise),
+			SC_ALLOW(SYS_mremap),
 
+			SC_ALLOW(SYS_futex),
+
+			SC_ALLOW(SYS_clock_gettime),
+			SC_ALLOW(SYS_gettimeofday),
+/*
+			SC_ALLOW(SYS_getpid),
+			SC_ALLOW(SYS_gettid),
+			SC_ALLOW(SYS_getuid),
+			SC_ALLOW(SYS_geteuid),
+			SC_ALLOW(SYS_getgid),
+			SC_ALLOW(SYS_getegid),
+*/
+			SC_ALLOW(SYS_uname),
+			SC_ALLOW(SYS_getrandom),
+
+			SC_ALLOW(SYS_rt_sigaction),
+			SC_ALLOW(SYS_rt_sigprocmask),
+			SC_ALLOW(SYS_rt_sigreturn),
+
+			SC_ALLOW(SYS_arch_prctl),
+			SC_ALLOW(SYS_set_tid_address),
+			SC_ALLOW(SYS_set_robust_list),
+
+			SC_ALLOW(SYS_prlimit64),
+
+			SC_ALLOW(SYS_execve),
+
+			SC_ALLOW(SYS_close),
+			SC_ALLOW(SYS_rseq),
+
+			SC_ALLOW(SYS_readlinkat),
+
+		//BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_LOG),
 		BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 	};
 
@@ -85,3 +104,5 @@ static inline int8_t set_seccomp()
 err_out:
 	return ret_err;
 }
+
+

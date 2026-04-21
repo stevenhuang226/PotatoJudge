@@ -6,8 +6,8 @@
 
 #include "../utils/copy_file.c"
 
-#include "../compile/compile.c"
-#include "../execute/execute.c"
+#include "../compile/entry.c"
+#include "../execute/entry.c"
 
 #include <stdlib.h>
 
@@ -16,15 +16,7 @@
  * *err_code: when return array == NULL. Check this value. If return isn't NULL, this value should write as judge_accept
  */
 
-#define L_LIMIT_FSIZE_MB 1 // limit FSIZE
-#define L_LIMIT_NPROC 1 // limit NPROC
-#define PROBLEM_CONFIG_CASE_COUNT "case_count=%d"		// case count // these should match problem/X/config.conf
-#define PROBLEM_CONFIG_CPU "limit_time_s=%d"			// cpu time limit
-#define PROBLEM_CONFIG_AS "limit_as_mb=%d"			// memory limit
-#define PROBLEM_CONFIG_STACK "limit_stack_mb=%d"		// stack limit
-#define PROBLEM_CONFIG_MAX_RES "expect_max_result_mb=%lld"	// maximum result expect size (using for set shared memory)
-
-judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
+judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_status_t *err_code)
 {
 	judge_result_t *ret_err = NULL;
 	int case_count = -1;
@@ -77,7 +69,8 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 		goto err_out;
 	}
 
-	compile_status_t compile_stat = compile(&g_judge_config.sandbox_path, task->compiler_type);
+	compile_status_t compile_stat
+		= pj_compile_entry(&g_judge_config.sandbox_path, task->compiler_type);
 	switch (compile_stat) {
 	case COMPILE_FAIL:
 		*err_code = JUDGE_COMPILE_ERROR;
@@ -99,7 +92,7 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 	off_t max_result_size = -1;
 
 	FILE *fp = fopen(problem_config_path, "r");
-	if (!fp) {
+	if (! fp) {
 		*err_code = JUDGE_NO_PROBLEM_CONFIG;
 		goto err_out;
 	}
@@ -140,7 +133,7 @@ judge_result_t *submission(const judge_task_t *task, int *ret_case_count, judge_
 			g_judge_config.base_problem, task->problem_id);
 
 		execute_resource_t usage;
-		execute_status_t ret = execute(&g_judge_config.sandbox_path, &problem_set, &usage);
+		execute_status_t ret = pj_execute_entry(&g_judge_config.sandbox_path, &problem_set, &usage);
 
 		judge_status_t js;
 
