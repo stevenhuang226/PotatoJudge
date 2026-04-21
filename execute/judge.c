@@ -17,6 +17,7 @@ execute_status_t pj_execute_judge(
 	int shm_fd, off_t shm_size)
 {
 	execute_status_t ret_err = EXECUTE_UNKNOW;
+	int null_fd = -1;
 
 	if (sandbox_path == NULL ||
 		problem_limit == NULL ||
@@ -30,9 +31,18 @@ execute_status_t pj_execute_judge(
 	snprintf(str_shm_size, sizeof(str_shm_size), "%lld", shm_size);
 
 	TRY(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+	TRY(mount("/dev/null", sandbox_path->dev_null, NULL, MS_BIND, NULL));
+	TRY(mount(NULL, sandbox_path->dev_null, NULL,
+		MS_REMOUNT | MS_BIND | MS_NOSUID, NULL));
+
 	TRY(chdir(sandbox_path->base) < 0);
 	TRY(chroot("./"));
 	TRY(chdir("/"));
+
+	TRY_GIVE(open("/dev/null", O_WRONLY), null_fd);
+	TRY(dup2(null_fd, STDOUT_FILENO));
+	TRY(dup2(null_fd, STDERR_FILENO));
+	close(null_fd); null_fd = -1;
 
 	TRY(set_limit(problem_limit));
 	TRY(set_seccomp());
@@ -48,6 +58,11 @@ execute_status_t pj_execute_judge(
 
 	return EXECUTE_UNKNOW;
 err_out:
-	if (shm_fd >= 0) close(shm_fd); shm_fd = -1;
+	if (shm_fd >= 0) {
+		close(shm_fd); shm_fd = -1;
+	}
+	if (null_fd >= 0) {
+		close(null_fd); null_fd = -1;
+	}
 	return ret_err;
 }

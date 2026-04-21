@@ -38,6 +38,7 @@ compile_status_t pj_sandbox_compile(
 	const compiler_type_t compiler_type)
 {
 	int ret_err = COMPILE_UNKNOW;
+	int null_fd = -1;
 
 	if (sandbox_path == NULL ||
 	!IS_COMPILER_TYPE(compiler_type)) {
@@ -56,10 +57,16 @@ compile_status_t pj_sandbox_compile(
 		MS_REMOUNT | MS_BIND | MS_RDONLY | MS_NODEV | MS_NOSUID, NULL));
 	TRY(mount("/dev/null", sandbox_path->dev_null, NULL, MS_BIND, NULL));
 	TRY(mount(NULL, sandbox_path->dev_null, NULL,
-		MS_REMOUNT | MS_BIND | MS_RDONLY | MS_NODEV | MS_NOSUID, NULL));
+		MS_REMOUNT | MS_BIND | MS_NOSUID, NULL));
+
 	TRY(chdir(sandbox_path->base));
 	TRY(chroot("."));
 	TRY(chdir("/"));
+
+	TRY_GIVE(open("/dev/null", O_WRONLY), null_fd);
+	TRY(dup2(null_fd, STDOUT_FILENO));
+	TRY(dup2(null_fd, STDERR_FILENO));
+	close(null_fd); null_fd = -1;
 
 	int limit_time_s = 2;
 	int limit_as_mb = 256;
@@ -78,5 +85,8 @@ compile_status_t pj_sandbox_compile(
 
 	TRY(pj_exec_compiler(compiler_type));
 err_out:
+	if (null_fd >= 0) {
+		close(null_fd); null_fd = -1;
+	}
 	return ret_err;
 }
