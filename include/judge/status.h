@@ -17,4 +17,6 @@ typedef enum {
 	JUDGE_UNKNOW_ERROR,
 } judge_status_t;
 
+#define IS_JUDGE_STATUS(code) ((code) >= JUDGE_ACCEPT && (code) <= JUDGE_UNKNOW_ERROR)
+
 #endif
