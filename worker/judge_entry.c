@@ -41,8 +41,17 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	judge_status_t err_code;
 	judge_result_t *result = pj_submit(&task, &case_count, &err_code);
 
-	if (result == NULL || case_count < 0) {
+	if (result == NULL && ! IS_JUDGE_STATUS(err_code)) {
 		goto err_out;
+	}
+
+	if (result == NULL && IS_JUDGE_STATUS(err_code)) {
+		result = malloc(sizeof(judge_result_t));
+		result->id = -1;
+		result->status = err_code;
+		result->usage.time_us = 0;
+		result->usage.mem_kb = 0;
+		case_count = 1;
 	}
 
 	TRY(pj_write_result(result, case_count, str_output_dir));
