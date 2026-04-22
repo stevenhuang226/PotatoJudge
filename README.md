@@ -13,3 +13,9 @@
 ```limit_as_mb=8``` memory limit(mb)\
 ```limit_stack_mb=8``` stack limit(mb)\
 ```expect_max_result_mb=8``` file size limit (mb)
+
+## base_submission/X(id)/detail.conf
+```compiler_type=1```\
+- 1 gcc\
+- 2 g++\
+use this to set compiler type (only gcc is supported currently)
