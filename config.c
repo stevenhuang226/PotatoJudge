@@ -1,7 +1,7 @@
 #include "./include/global.h"
 #include "./include/config.h"
 
-#define CONF_PATH "/etc/potatojudge.conf"			// path to config file. If you want custom config path. Change this and re-compile
+#define CONF_PATH "/tmp/pj/pj_config.conf"			// path to config file. If you want custom config path. Change this and re-compile
 
 #define SUB_DETAIL_NAME "detail.conf"				// provie compiler type // only C is supported now
 #define SUB_CONFIG_COMPILER_TYPE "compiler_type=%d"		//
