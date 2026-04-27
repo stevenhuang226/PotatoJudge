@@ -7,8 +7,9 @@ int compile_gpp()
 
 	execl("/usr/bin/gcc",
 		"g++",
-		SOLUTION_NAME,
+		"-x", "c++",
 		DRIVER_NAME,
+		SOLUTION_NAME,
 		"-static",
 		"-o", COMPILED_OUT_NAME,
 		NULL);
