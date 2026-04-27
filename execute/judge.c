@@ -1,3 +1,4 @@
+#include "../config.c"
 #include "../include/global.h"
 #include "../include/utils/potato_try.h"
 #include "../include/sandbox_path.h"
@@ -10,7 +11,6 @@
 #include <unistd.h>
 #include <sched.h>
 
-#define COMPILED_USER_CODE_NAME "./a.out"
 execute_status_t pj_execute_judge(
 	sandbox_path_t *sandbox_path,
 	problem_limit_t *problem_limit,
@@ -48,13 +48,13 @@ execute_status_t pj_execute_judge(
 	TRY(set_seccomp());
 
 	char *argv[] = {
-		COMPILED_USER_CODE_NAME,
+		COMPILED_OUT_NAME,
 		str_shm_fd,
 		str_shm_size,
 		NULL,
 	};
 
-	execv(COMPILED_USER_CODE_NAME, argv);
+	execv(COMPILED_OUT_NAME, argv);
 
 	return EXECUTE_UNKNOW;
 err_out:

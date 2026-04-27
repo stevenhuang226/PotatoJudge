@@ -21,15 +21,13 @@ static const char *judge_status_string[] = {
 	"UNKNOW_ERROR",
 };
 
-#define WRITE_FNAME "judge.json"
-#define DONE_FNAME "done.json"
 #define MAX_CASE_TEXT_COUNT 200
 int8_t pj_write_result(const judge_result_t *result,
 	const int case_count,
 	const char *output_dir)
 {
 	int8_t ret_err = -1;
-	char *buffer;
+	char *buffer = NULL;
 	int fd = -1;
 
 	if (result == NULL ||
@@ -41,9 +39,9 @@ int8_t pj_write_result(const judge_result_t *result,
 	char str_write_path[MAX_PATH_LENGTH];
 	char str_done_path[MAX_PATH_LENGTH];
 	snprintf(str_write_path, sizeof(str_write_path),
-		"%s/%s", output_dir, WRITE_FNAME);
+		"%s/" RES_WRK_NAME, output_dir);
 	snprintf(str_done_path, sizeof(str_done_path),
-		"%s/%s", output_dir, DONE_FNAME);
+		"%s/" RES_DONE_NAME, output_dir);
 
 	ssize_t bfr_size = case_count * MAX_CASE_TEXT_COUNT;
 	buffer = malloc(bfr_size * sizeof(char));

@@ -34,19 +34,19 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 	char buffer[4096];
 
 	snprintf(solution_path, sizeof(solution_path),
-		"%s/%u/solution.c",
+		"%s/%u/" SOLUTION_NAME,
 		g_judge_config.base_submission, task->submission_id);
 	snprintf(driver_path, sizeof(driver_path),
-		"%s/%u/driver.c",
+		"%s/%u/" DRIVER_NAME,
 		g_judge_config.base_problem, task->problem_id);
 	snprintf(sandbox_solution_path, sizeof(sandbox_solution_path),
-		"%s/solution.c",
+		"%s/" SOLUTION_NAME,
 		g_judge_config.sandbox_path.base);
 	snprintf(sandbox_driver_path, sizeof(sandbox_driver_path),
-		"%s/driver.c",
+		"%s/" DRIVER_NAME,
 		g_judge_config.sandbox_path.base);
 	snprintf(problem_config_path, sizeof(problem_config_path),
-		"%s/%u/config.conf",
+		"%s/%u/" PROBLEM_CONFIG_NAME,
 		g_judge_config.base_problem, task->problem_id);
 
 	copy_file_t cp_sln = copy_file(solution_path, sandbox_solution_path);
@@ -87,8 +87,8 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 	}
 
 	problem_limit_t l_limit;
-	l_limit.file_mb = L_LIMIT_FSIZE_MB;
-	l_limit.process = L_LIMIT_NPROC;
+	l_limit.file_mb = PROBLEM_DEF_FSIZE;
+	l_limit.process = PROBLEM_DEF_NPROC;
 	off_t max_result_size = -1;
 
 	FILE *fp = fopen(problem_config_path, "r");
@@ -97,11 +97,11 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 		goto err_out;
 	}
 	while (fgets(buffer, sizeof(buffer), fp)) {
-		sscanf(buffer, PROBLEM_CONFIG_CASE_COUNT, &case_count);
-		sscanf(buffer, PROBLEM_CONFIG_CPU, &(l_limit.time_s));
-		sscanf(buffer, PROBLEM_CONFIG_AS, &(l_limit.as_mb));
-		sscanf(buffer, PROBLEM_CONFIG_STACK, &(l_limit.stack_mb));
-		sscanf(buffer, PROBLEM_CONFIG_MAX_RES, &max_result_size);
+		sscanf(buffer, PROBLEM_CASE_COUNT "=%d", &case_count);
+		sscanf(buffer, PROBLEM_CPU_SECOND "=%d", &(l_limit.time_s));
+		sscanf(buffer, PROBLEM_MEM_MB "=%d", &(l_limit.as_mb));
+		sscanf(buffer, PROBLEM_STACK_MB "=%d", &(l_limit.stack_mb));
+		sscanf(buffer, PROBLEM_SHM_MB "=%lld", &max_result_size);
 	}
 	fclose(fp);
 
@@ -123,13 +123,13 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 		problem_set.max_result_size = max_result_size;
 
 		snprintf(problem_set.input_path, sizeof(problem_set.input_path),
-			"%s/%u/input%d.bin",
+			"%s/%u/" INPUT_PREFIX "%d" INPUT_SUFFIX,
 			g_judge_config.base_problem, task->problem_id, id);
 		snprintf(problem_set.output_path, sizeof(problem_set.output_path),
-			"%s/%u/output%d.bin",
+			"%s/%u/" OUTPUT_PREFIX "%d" OUTPUT_SUFFIX,
 			g_judge_config.base_problem, task->problem_id, id);
 		snprintf(problem_set.checker_path, sizeof(problem_set.checker_path),
-			"%s/%u/checker.out",
+			"%s/%u/" CHECKER_NAME,
 			g_judge_config.base_problem, task->problem_id);
 
 		execute_resource_t usage;

@@ -1,3 +1,4 @@
+#include "../config.c"
 #include <unistd.h>
 
 int compile_gpp()
@@ -6,10 +7,10 @@ int compile_gpp()
 
 	execl("/usr/bin/gcc",
 		"g++",
-		"solution.cpp",
-		"driver.c",
+		SOLUTION_NAME,
+		DRIVER_NAME,
 		"-static",
-		"-o", "a.out",
+		"-o", COMPILED_OUT_NAME,
 		NULL);
 
 	return ret_err;

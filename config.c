@@ -1,19 +1,44 @@
 #include "./include/global.h"
 #include "./include/config.h"
 
-#define CONF_PATH "/tmp/pj/pj_config.conf"			// path to config file. If you want custom config path. Change this and re-compile
+#define CONF_PATH "/tmp/pj/pj_config.conf"		// path to config file
 
-#define SUB_DETAIL_NAME "detail.conf"				// provie compiler type // only C is supported now
-#define SUB_CONFIG_COMPILER_TYPE "compiler_type=%d"		//
-								// 1 => gcc
-								// 2 => g++
+/* problem */
+#define INPUT_PREFIX "input"
+#define INPUT_SUFFIX ".bin"
+#define OUTPUT_PREFIX "output"
+#define OUTPUT_SUFFIX ".bin"
 
-#define L_LIMIT_FSIZE_MB 1					// limit FSIZE
-#define L_LIMIT_NPROC 1						// limit NPROC
-#define PROBLEM_CONFIG_CASE_COUNT "case_count=%d"		// case count // these should match problem/X/config.conf
-#define PROBLEM_CONFIG_CPU "limit_time_s=%d"			// cpu time limit
-#define PROBLEM_CONFIG_AS "limit_as_mb=%d"			// memory limit
-#define PROBLEM_CONFIG_STACK "limit_stack_mb=%d"		// stack limit
-#define PROBLEM_CONFIG_MAX_RES "expect_max_result_mb=%lld"	// maximum result expect size (using for set shared memory)
+#define SOLUTION_NAME "solution"
+#define DRIVER_NAME "driver"
+#define PROBLEM_CONFIG_NAME "config.conf"
+#define CHECKER_NAME "checker.out"
+
+#define PROBLEM_CASE_COUNT "case_count"			// case count
+#define PROBLEM_CPU_SECOND "limit_time_s"		// cpu time limit (second)
+#define PROBLEM_MEM_MB "limit_as_mb"			// memory limit (mb)
+#define PROBLEM_STACK_MB "limit_stack_mb"		// stack limit (mb)
+#define PROBLEM_SHM_MB "expect_max_result_mb"		// SHM alloc size (mb)
+		/* PROBLEM_SHM_MB == MAX(expect max result, input) size */
+#define PROBLEM_DEF_FSIZE 1
+#define PROBLEM_DEF_NPROC 1
+
+/* compile */
+#define COMPILED_OUT_NAME "a.out"
+
+/* submission */
+#define SUB_DETAIL_NAME "detail.conf"			// provie compiler type
+#define SUB_COMPILER_TYPE "compiler_type"
+/*
+ * [1] gcc
+ * [2] g++
+ */
+
+/* result */
+#define RES_WRK_NAME "judge.json"
+#define RES_DONE_NAME "done.json"
+
+/* listener */
+#define SOCKET_PATH "/tmp/pj.sock"				// the socket name. Will used to listen submit call
 
 judge_config_t g_judge_config;
