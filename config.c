@@ -8,6 +8,11 @@
 #define INPUT_SUFFIX ".bin"
 #define OUTPUT_PREFIX "output"
 #define OUTPUT_SUFFIX ".bin"
+/*
+ * filename sample
+ * input: input0.bin
+ * output: output0.bin
+ */
 
 #define SOLUTION_NAME "solution"
 #define DRIVER_NAME "driver"

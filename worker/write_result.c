@@ -70,7 +70,7 @@ int8_t pj_write_result(const judge_result_t *result,
 		}
 		offset += w;
 	}
-	if (case_count > 1) {
+	if (case_count > 0) {
 		--offset;	// remove trail ","
 	}
 	w = snprintf(buffer + offset, bfr_size - offset, "]}\n");
