@@ -12,7 +12,6 @@
 #include <sys/un.h>
 #include <errno.h>
 
-#define SOCKET_PATH "/tmp/pj.sock"
 int pj_setup_listener()
 {
 	int ret_err = -1;
@@ -26,7 +25,7 @@ int pj_setup_listener()
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
 
-	unlink(SOCKET_PATH); // delete file if exists
+	unlink(SOCKET_PATH);		// delete file if exists
 
 	TRY(bind(fd, (struct sockaddr *)&addr, sizeof(addr)));
 	TRY(listen(fd, 16));

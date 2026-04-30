@@ -17,12 +17,11 @@
 execute_status_t pj_execute_isolate(
 	sandbox_path_t *sandbox_path,
 	problem_set_t *problem_set,
-	execute_resource_t *exe_usage,
-	int shm_fd, off_t shm_size)
+	int shm_fd, off_t shm_size,
+	int usage_fd)
 {
 	if (sandbox_path == NULL ||
 		problem_set == NULL ||
-		exe_usage == NULL ||
 		shm_fd < 0 || shm_size < 0) {
 		goto err_out;
 	}
@@ -71,14 +70,17 @@ execute_status_t pj_execute_isolate(
 
 	int status;
 	struct rusage usage;
-
 	TRY(wait4(judge_pid, &status, 0, &usage));
 
-	uint64_t time_us = usage.ru_utime.tv_sec * 1000000ULL + usage.ru_utime.tv_usec +
-		usage.ru_stime.tv_sec * 1000000ULL + usage.ru_stime.tv_usec;
-	uint64_t mem_kb = usage.ru_maxrss;
+	execute_resource_t exe_resouce;
+	exe_resouce.time_us = usage.ru_utime.tv_sec * 1000000ULL +
+		usage.ru_utime.tv_usec +
+		usage.ru_stime.tv_sec * 1000000ULL +
+		usage.ru_stime.tv_usec;
+	exe_resouce.mem_kb = usage.ru_maxrss;
 
-	exe_usage->time_us = time_us; exe_usage->mem_kb = mem_kb;
+	TRY(write(usage_fd, &exe_resouce, sizeof(exe_resouce)));
+	close(usage_fd); usage_fd = -1;
 
 	if (WIFEXITED(status)) return WEXITSTATUS(status);
 
@@ -90,11 +92,7 @@ execute_status_t pj_execute_isolate(
 		} if (sig == SIGSYS) {
 			return EXECUTE_SIGSYS;
 		} if (sig == SIGSEGV) {
-			if (mem_kb * 1000ULL > problem_set->limit.as_mb) {
-				return EXECUTE_MLE;
-			} else {
-				return EXECUTE_SIGSEGV;
-			}
+			return EXECUTE_SIGSEGV;
 		} if (sig == SIGKILL) {
 			return EXECUTE_SIGKILL;
 		}
@@ -104,6 +102,11 @@ execute_status_t pj_execute_isolate(
 
 	return EXECUTE_UNKNOW;
 err_out:
-	if (shm_fd >= 0) close(shm_fd); shm_fd = -1;
+	if (shm_fd >= 0) {
+		close(shm_fd); shm_fd = -1;
+	}
+	if (usage_fd >= 0) {
+		close(usage_fd); usage_fd = -1;
+	}
 	return EXECUTE_UNKNOW;
 }

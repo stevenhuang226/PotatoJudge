@@ -59,14 +59,7 @@ static inline int8_t set_seccomp()
 
 			SC_ALLOW(SYS_clock_gettime),
 			SC_ALLOW(SYS_gettimeofday),
-/*
-			SC_ALLOW(SYS_getpid),
-			SC_ALLOW(SYS_gettid),
-			SC_ALLOW(SYS_getuid),
-			SC_ALLOW(SYS_geteuid),
-			SC_ALLOW(SYS_getgid),
-			SC_ALLOW(SYS_getegid),
-*/
+
 			SC_ALLOW(SYS_uname),
 			SC_ALLOW(SYS_getrandom),
 
@@ -87,7 +80,6 @@ static inline int8_t set_seccomp()
 
 			SC_ALLOW(SYS_readlinkat),
 
-		//BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_LOG),
 		BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 	};
 

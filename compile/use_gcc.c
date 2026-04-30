@@ -1,3 +1,4 @@
+#include "../config.c"
 #include <unistd.h>
 
 int compile_gcc()
@@ -6,10 +7,11 @@ int compile_gcc()
 
 	execl("/usr/bin/gcc",
 		"gcc",
-		"solution.c",
-		"driver.c",
+		"-x", "c",
+		DRIVER_NAME,
+		SOLUTION_NAME,
 		"-static",
-		"-o", "a.out",
+		"-o", COMPILED_OUT_NAME,
 		NULL);
 
 	return ret_err;

@@ -17,8 +17,8 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	char str_sub_config_path[MAX_PATH_LENGTH];
 	char str_output_dir[MAX_PATH_LENGTH];
 	snprintf(str_sub_config_path, sizeof(str_sub_config_path),
-		"%s/%u/%s",
-		g_judge_config.base_submission, submission_id, SUB_DETAIL_NAME);
+		"%s/%u/" SUB_DETAIL_NAME,
+		g_judge_config.base_submission, submission_id);
 	snprintf(str_output_dir, sizeof(str_output_dir),
 		"%s/%u",
 		g_judge_config.base_submission, submission_id);
@@ -31,7 +31,7 @@ int8_t pj_judge_entry(uint32_t submission_id, uint32_t problem_id)
 	FILE *fp = fopen(str_sub_config_path, "r");
 	if (! fp) goto err_out;
 	while (fgets(buffer, sizeof(buffer), fp)) {
-		sscanf(buffer, SUB_CONFIG_COMPILER_TYPE, &task.compiler_type);
+		sscanf(buffer, SUB_COMPILER_TYPE "=%d", &task.compiler_type);
 	}
 	fclose(fp);
 

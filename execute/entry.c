@@ -41,6 +41,9 @@ execute_status_t pj_execute_entry(
 	off_t output_size = -1;
 	int exp_fd = -1;
 
+	int pipe_fd[2];
+	pipe_fd[0] = pipe_fd[1] = -1;
+
 	execute_status_t ret_err = EXECUTE_UNKNOW;
 
 	TRY_GIVE_ERR(open(problem_set->input_path, O_RDONLY), input_fd, EXECUTE_NO_INPUT);
@@ -58,6 +61,8 @@ execute_status_t pj_execute_entry(
 
 	close(input_fd); input_fd = -1;
 
+	TRY(pipe(pipe_fd));
+
 	pid_t parent_pid = fork();
 
 	if (parent_pid < 0) {
@@ -66,18 +71,31 @@ execute_status_t pj_execute_entry(
 	}
 
 	if (parent_pid == 0) {
+		close(pipe_fd[0]); pipe_fd[0] = -1;
 		execute_status_t ret = pj_execute_isolate(
 			sandbox_path,
 			problem_set,
-			exe_usage,
-			shm_fd, shm_size);
+			shm_fd, shm_size,
+			pipe_fd[1]);
 
 		close(shm_fd); shm_fd = -1;
+		close(pipe_fd[1]); pipe_fd[1] = -1;
 		_exit(ret);
 	}
 
+	close(pipe_fd[1]); pipe_fd[1] = -1;
+
 	int parent_status;
 	TRY(waitpid(parent_pid, &parent_status, 0));
+
+	ssize_t pipe_rd = -1;
+	TRY_GIVE(read(pipe_fd[0], exe_usage, sizeof(execute_resource_t)), pipe_rd);
+	close(pipe_fd[0]); pipe_fd[0] = -1;
+
+	if (pipe_rd != sizeof(execute_resource_t)) {
+		exe_usage->time_us = 0;
+		exe_usage->mem_kb = 0;
+	}
 
 	if (!WIFEXITED(parent_status)) goto err_out;
 
@@ -142,20 +160,22 @@ execute_status_t pj_execute_entry(
 
 err_out:
 	if (input_fd >= 0) {
-		close(input_fd);
-		input_fd = -1;
+		close(input_fd); input_fd = -1;
 	}
 	if (shm_fd >= 0) {
-		close(shm_fd);
-		shm_fd = -1;
+		close(shm_fd); shm_fd = -1;
 	}
 	if (output_fd >= 0) {
-		close(output_fd);
-		output_fd = -1;
+		close(output_fd); output_fd = -1;
 	}
 	if (exp_fd >= 0) {
-		close(exp_fd);
-		exp_fd = -1;
+		close(exp_fd); exp_fd = -1;
+	}
+	if (pipe_fd[0] >= 0) {
+		close(pipe_fd[0]); pipe_fd[0] = -1;
+	}
+	if (pipe_fd[1] >= 0) {
+		close(pipe_fd[1]); pipe_fd[1] = -1;
 	}
 
 	return ret_err;
