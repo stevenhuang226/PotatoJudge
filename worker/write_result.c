@@ -17,6 +17,7 @@ static const char *judge_status_string[] = {
 	"SIGSYS",
 	"NO_SOLUTION",
 	"NO_DRIVER",
+	"NO_SETLIMIT",
 	"NO_PROBLEM_CONFIG",
 	"UNKNOW_ERROR",
 };

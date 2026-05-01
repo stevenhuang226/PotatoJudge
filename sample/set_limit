@@ -1,0 +1,79 @@
+#define _GNU_SOURCE
+#include <stdint.h>
+#include <stddef.h>
+#include <unistd.h>
+#include <sys/prctl.h>
+#include <linux/seccomp.h>
+#include <linux/filter.h>
+#include <linux/audit.h>
+#include <sys/syscall.h>
+
+#define SC_ALLOW(nr) \
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (nr), 0, 1), \
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+
+static void install_seccomp(void)
+{
+    struct sock_filter filter[] = {
+        // load syscall number
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+                 (uint32_t)offsetof(struct seccomp_data, nr)),
+
+        // ===== process exit =====
+        SC_ALLOW(__NR_exit),
+        SC_ALLOW(__NR_exit_group),
+
+        // ===== memory =====
+        SC_ALLOW(__NR_brk),
+        SC_ALLOW(__NR_mmap),
+        SC_ALLOW(__NR_munmap),
+        SC_ALLOW(__NR_mprotect),
+        SC_ALLOW(__NR_mremap),
+        SC_ALLOW(__NR_madvise),
+
+        // ===== basic IO (minimal) =====
+        SC_ALLOW(__NR_read),
+        SC_ALLOW(__NR_close),
+
+        // ===== signals =====
+        SC_ALLOW(__NR_rt_sigaction),
+        SC_ALLOW(__NR_rt_sigprocmask),
+        SC_ALLOW(__NR_rt_sigreturn),
+
+        // ===== threading/runtime =====
+        SC_ALLOW(__NR_futex),
+        SC_ALLOW(__NR_set_tid_address),
+        SC_ALLOW(__NR_set_robust_list),
+        SC_ALLOW(__NR_rseq),
+
+        // ===== time =====
+        SC_ALLOW(__NR_clock_gettime),
+        SC_ALLOW(__NR_gettimeofday),
+
+        // ===== misc runtime =====
+        SC_ALLOW(__NR_uname),
+        SC_ALLOW(__NR_getrandom),
+        SC_ALLOW(__NR_arch_prctl),
+        SC_ALLOW(__NR_prlimit64),
+
+        // ===== file metadata (needed by some runtimes) =====
+        SC_ALLOW(__NR_readlinkat),
+        SC_ALLOW(__NR_newfstatat),
+
+        // ===== HARD BLOCK (implicit by default kill) =====
+        // no exec, no fork, no clone, no ptrace, no open
+
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+    };
+
+    struct sock_fprog prog = {
+        .len = (uint16_t)(sizeof(filter) / sizeof(filter[0])),
+        .filter = filter,
+    };
+
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
+        _exit(1);
+
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog))
+        _exit(1);
+}

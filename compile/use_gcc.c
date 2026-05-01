@@ -8,6 +8,7 @@ int compile_gcc()
 	execl("/usr/bin/gcc",
 		"gcc",
 		"-x", "c",
+		SETLIMIT_NAME,
 		DRIVER_NAME,
 		SOLUTION_NAME,
 		"-static",

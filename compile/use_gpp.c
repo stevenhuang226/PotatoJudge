@@ -3,11 +3,14 @@
 
 int compile_gpp()
 {
+	return -1;	// CPP doesn't work currently
+
 	int ret_err = -1;
 
 	execl("/usr/bin/gcc",
 		"g++",
 		"-x", "c++",
+		SETLIMIT_NAME,
 		DRIVER_NAME,
 		SOLUTION_NAME,
 		"-static",

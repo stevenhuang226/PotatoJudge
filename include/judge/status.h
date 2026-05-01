@@ -13,6 +13,7 @@ typedef enum {
 	JUDGE_SIGSYS,			// use banned syscall
 	JUDGE_NO_SOLUTION,
 	JUDGE_NO_DRIVER,
+	JUDGE_NO_SETLIMIT,
 	JUDGE_NO_PROBLEM_CONFIG,
 	JUDGE_UNKNOW_ERROR,
 } judge_status_t;

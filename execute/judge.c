@@ -45,7 +45,6 @@ execute_status_t pj_execute_judge(
 	close(null_fd); null_fd = -1;
 
 	TRY(set_limit(problem_limit));
-	TRY(set_seccomp());
 
 	char *argv[] = {
 		COMPILED_OUT_NAME,

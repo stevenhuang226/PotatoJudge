@@ -16,6 +16,7 @@
 
 #define SOLUTION_NAME "solution"
 #define DRIVER_NAME "driver"
+#define SETLIMIT_NAME "set_limit"
 #define PROBLEM_CONFIG_NAME "config.conf"
 #define CHECKER_NAME "checker.out"
 
