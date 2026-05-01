@@ -12,7 +12,7 @@
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (nr), 0, 1), \
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
 
-static void install_seccomp(void)
+void install_seccomp()
 {
     struct sock_filter filter[] = {
         // load syscall number

@@ -1,32 +1,158 @@
 # PotatoJudge
----
-## introduction
-* A simple judge backend.
-* Running on Linux
----
-## /etc/potatojudge.conf
-* ```base_submission=```
-> path to where submission file. The user file should put under this director
-* ```base_problem=```
-> path to problem files. The problem input/output/config will be here
-* ```base_worksapace=```
-> !! this should put under /tmp !! It will create some trash file. And judge will running under this.
----
-## base\_problem/X(id)/config.conf
-* ```case_count=1```
-> test case's count
-* ```limit_time_s=2```
-> cpu run time limit(second)
-* ```limit_as_mb=8```
-> memory limit(mb)
-* ```limit_stack_mb=8```
-> stack limit(mb)
-* ```expect_max_result_mb=8```
-> file size limit (mb)
 
-## base\_submission/X(id)/detail.conf
-* ```compiler_type=1```
-> 1 gcc  
-2 g++  
-use these to set compiler type (only gcc is supported currently)
+## Introduction
+
+Simple Linux-based judge backend.
+
+---
+
+## Global Config
+
+Path:
+
+```
+#define CONF_PATH <path>
+```
+
+Fields:
+
+```
+base_submission=<path>
+base_problem=<path>
+base_workspace=<path>
+```
+
+* `base_submission`
+  Directory containing submissions
+
+* `base_problem`
+  Directory containing problems
+
+* `base_workspace`
+  Working directory (must be under `/tmp`)
+
+---
+
+## Problem Structure
+
+```
+<base_problem>/<problem_id>/
+```
+
+Files:
+
+* `config.conf`
+* `driver`
+* `checker.out`
+* `input0.bin`, `input1.bin`, ...
+* `output0.bin`, `output1.bin`, ...
+
+Additionally:
+
+```
+<base_problem>/set_limit
+```
+
+* `set_limit`
+  Executable used to apply runtime limits (seccomp)
+
+### config.conf
+
+case_count=%d
+limit_time_s=%d
+limit_as_mb=%d
+limit_stack_mb=%d
+expect_max_result_mb=%d
+
+* `case_count`
+  Number of test cases
+
+* `limit_time_s`
+  CPU time limit (seconds)
+
+* `limit_as_mb`
+  Memory limit (MB)
+
+* `limit_stack_mb`
+  Stack limit (MB)
+
+* `expect_max_result_mb`
+  Shared memory size (MB)
+  Must be >= max(input size, output size)
+
+---
+
+## Submission Structure
+
+```
+<base_submission>/<submission_id>/
+```
+
+Files:
+
+* `solution`
+* `detail.conf`
+
+### solution
+
+Must define:
+
+```c
+char *solution();
+```
+
+Example:
+
+```c
+char *solution()
+{
+    return "Hello World!";
+}
+```
+
+---
+
+### detail.conf
+
+compiler_type=%d
+
+* `1` → gcc
+* `2` → g++ (reserved)
+
+```
+```
+
+---
+
+## Judge Flow
+
+1. Read global config
+2. Load problem + submission
+3. Compile:
+
+   ```
+   set_limit + driver + solution → a.out
+   ```
+4. Apply limits:
+
+   * CPU
+   * memory
+   * stack
+   * seccomp (via `set_limit`)
+5. Execute program
+6. Use shared memory to collect output
+7. Run `checker.out`
+8. Write result:
+   * `<base_submission>/<submission_id>/done.json`
+
+---
+
+## Notes
+
+* No stdin/stdout is used
+* Output is written via shared memory
+* Max output size is limited by `expect_max_result_mb`
+* Use `<base_problem>/set_limit` to block dangerous syscalls
+
+---
 
