@@ -27,8 +27,10 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 
 	char solution_path[MAX_PATH_LENGTH];
 	char driver_path[MAX_PATH_LENGTH];
+	char setlimit_path[MAX_PATH_LENGTH];
 	char sandbox_solution_path[MAX_PATH_LENGTH];
 	char sandbox_driver_path[MAX_PATH_LENGTH];
+	char sandbox_setlimit_path[MAX_PATH_LENGTH];
 	char problem_config_path[MAX_PATH_LENGTH];
 
 	char buffer[4096];
@@ -39,32 +41,50 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 	snprintf(driver_path, sizeof(driver_path),
 		"%s/%u/" DRIVER_NAME,
 		g_judge_config.base_problem, task->problem_id);
+	snprintf(setlimit_path, sizeof(setlimit_path),
+		"%s/" SETLIMIT_NAME,
+		g_judge_config.base_problem);
 	snprintf(sandbox_solution_path, sizeof(sandbox_solution_path),
 		"%s/" SOLUTION_NAME,
 		g_judge_config.sandbox_path.base);
 	snprintf(sandbox_driver_path, sizeof(sandbox_driver_path),
 		"%s/" DRIVER_NAME,
 		g_judge_config.sandbox_path.base);
+	snprintf(sandbox_setlimit_path, sizeof(sandbox_setlimit_path),
+		"%s/" SETLIMIT_NAME,
+		g_judge_config.sandbox_path.base);
 	snprintf(problem_config_path, sizeof(problem_config_path),
 		"%s/%u/" PROBLEM_CONFIG_NAME,
 		g_judge_config.base_problem, task->problem_id);
 
-	copy_file_t cp_sln = copy_file(solution_path, sandbox_solution_path);
-	if (cp_sln == COPY_FILE_NOT_FOUND) {
+	copy_file_t cp_stat;
+
+	cp_stat = copy_file(solution_path, sandbox_solution_path);
+	if (cp_stat == COPY_FILE_NOT_FOUND) {
 		*err_code = JUDGE_NO_SOLUTION;
 		goto err_out;
 	}
-	if (cp_sln == COPY_FILE_FAILED) {
+	if (cp_stat == COPY_FILE_FAILED) {
 		*err_code = JUDGE_UNKNOW_ERROR;
 		goto err_out;
 	}
 
-	copy_file_t cp_drv = copy_file(driver_path, sandbox_driver_path);
-	if (cp_drv == COPY_FILE_NOT_FOUND) {
+	cp_stat = copy_file(driver_path, sandbox_driver_path);
+	if (cp_stat == COPY_FILE_NOT_FOUND) {
 		*err_code = JUDGE_NO_DRIVER;
 		goto err_out;
 	}
-	if (cp_drv == COPY_FILE_FAILED) {
+	if (cp_stat == COPY_FILE_FAILED) {
+		*err_code = JUDGE_UNKNOW_ERROR;
+		goto err_out;
+	}
+
+	cp_stat = copy_file(setlimit_path, sandbox_setlimit_path);
+	if (cp_stat == COPY_FILE_NOT_FOUND) {
+		*err_code = JUDGE_NO_SETLIMIT;
+		goto err_out;
+	}
+	if (cp_stat == COPY_FILE_FAILED) {
 		*err_code = JUDGE_UNKNOW_ERROR;
 		goto err_out;
 	}
@@ -75,10 +95,10 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 	case COMPILE_FAIL:
 		*err_code = JUDGE_COMPILE_ERROR;
 		goto err_out;
-	case COMPILE_NO_SOLUTION:
+	case COMPILE_NO_SOLUTION:	// not exist
 		*err_code = JUDGE_NO_SOLUTION;
 		goto err_out;
-	case COMPILE_NO_DRIVER:
+	case COMPILE_NO_DRIVER:		// not exist
 		*err_code = JUDGE_NO_DRIVER;
 		goto err_out;
 	case COMPILE_UNKNOW:
@@ -104,6 +124,11 @@ judge_result_t *pj_submit(const judge_task_t *task, int *ret_case_count, judge_s
 		sscanf(buffer, PROBLEM_SHM_MB "=%lld", &max_result_size);
 	}
 	fclose(fp);
+
+	if (case_count < 0) {
+		*err_code = JUDGE_UNKNOW_ERROR;
+		goto err_out;
+	}
 
 	judge_result_t *result = malloc(case_count * sizeof(judge_result_t));
 	if (result == NULL) {
